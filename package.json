@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "cargo install -q worker-build && worker-build --release",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --minify",
     "fmt": "cargo fmt",
     "fmt:check": "cargo fmt --check",
     "lint": "cargo clippy",
