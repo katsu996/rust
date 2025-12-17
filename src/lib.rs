@@ -1,4 +1,4 @@
-use worker::{event, Context, Env, Request, Response, Result};
+use worker::{Context, Env, Request, Response, Result, event};
 
 mod constants;
 mod handlers;
