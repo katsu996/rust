@@ -1,0 +1,14 @@
+shell: bash
+
+pre-commit:
+  commands:
+    check:
+      use_shell: true
+      run: pnpm check
+      stage_fixed: true
+
+pre-push:
+  commands:
+    check:
+      use_shell: true
+      run: pnpm check
