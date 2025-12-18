@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "wrangler dev",
-    "build": "cargo install -q worker-build && worker-build --release",
+    "build": "wrangler build",
     "deploy": "wrangler deploy --minify",
     "fmt": "cargo fmt",
     "fmt:check": "cargo fmt --check",
