@@ -20,7 +20,7 @@ use crate::models::{BenchmarkResult, CalculationResult, WelcomeResponse};
     components(schemas(WelcomeResponse, CalculationResult, BenchmarkResult)),
     tags(
         (name = "General", description = "一般エンドポイント"),
-        (name = "Calculator", description = "計算エンドポイント"),
+        (name = "Math", description = "計算エンドポイント"),
         (name = "Benchmark", description = "ベンチマークエンドポイント")
     )
 )]
@@ -47,7 +47,7 @@ fn root() {}
 #[utoipa::path(
     get,
     path = "/math/add",
-    tag = "Calculator",
+    tag = "Math",
     params(
         ("a" = f64, Query, description = "1つ目の数値"),
         ("b" = f64, Query, description = "2つ目の数値")
@@ -65,7 +65,7 @@ fn add() {}
 #[utoipa::path(
     get,
     path = "/math/sub",
-    tag = "Calculator",
+    tag = "Math",
     params(
         ("a" = f64, Query, description = "1つ目の数値"),
         ("b" = f64, Query, description = "2つ目の数値")

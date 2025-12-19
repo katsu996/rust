@@ -10,6 +10,8 @@ pub struct Endpoints {
     pub openapi: String,
     /// 計算エンドポイント
     pub math: String,
+    /// ベンチマークエンドポイント
+    pub benchmark: String,
 }
 
 /// ルートエンドポイントのレスポンス
@@ -24,11 +26,12 @@ pub struct WelcomeResponse {
 impl WelcomeResponse {
     pub fn new() -> Self {
         Self {
-            message: "Welcome to Rust API".to_string(),
+            message: "Welcome to Rust API with OpenAPI document".to_string(),
             endpoints: Endpoints {
                 swagger: "/docs".to_string(),
                 openapi: "/openapi.json".to_string(),
                 math: "/math".to_string(),
+                benchmark: "/benchmark".to_string(),
             },
         }
     }
