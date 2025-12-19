@@ -397,6 +397,8 @@ dependencies = [
  "serde",
  "serde_json",
  "utoipa",
+ "wasm-bindgen",
+ "web-sys",
  "worker",
 ]
 

@@ -1,5 +1,6 @@
 use worker::{Response, Result, Url};
-use js_sys::Date;
+use wasm_bindgen::{JsCast, JsValue};
+use js_sys::{Function, Reflect};
 
 use crate::models::BenchmarkResult;
 use crate::utils::{get_u64_param, json_response, parse_query_params};
@@ -35,15 +36,40 @@ pub fn handle(url: &Url) -> Result<Response> {
     let iterations = get_u64_param(&params, "iterations", 10);
 
     // ベンチマーク実行
-    // WASM環境では Date::now() を使用（ミリ秒単位）
-    let start = Date::now();
+    // WASM環境では Performance API を使用して高精度タイマーを取得
+    // Cloudflare Workers環境ではグローバルオブジェクトからperformanceを取得し、
+    // Reflectを使ってperformance.now()を直接呼び出す
+    let global = js_sys::global();
+    let performance_obj = Reflect::get(&global, &JsValue::from_str("performance"))
+        .map_err(|_| worker::Error::RustError("Performance API not available".to_string()))?;
+    
+    // performance.now関数を取得してFunction型に変換
+    let now_fn_value = Reflect::get(&performance_obj, &JsValue::from_str("now"))
+        .map_err(|_| worker::Error::RustError("performance.now is not available".to_string()))?;
+    let now_fn: Function = now_fn_value
+        .dyn_into()
+        .map_err(|_| worker::Error::RustError("performance.now is not a function".to_string()))?;
+    
+    // performance.now()を呼び出して開始時刻を取得
+    let start = now_fn
+        .call1(&performance_obj, &js_sys::Array::new())
+        .map_err(|_| worker::Error::RustError("Failed to call performance.now()".to_string()))?
+        .as_f64()
+        .ok_or_else(|| worker::Error::RustError("performance.now() did not return a number".to_string()))?;
+    
     let mut result = 0u64;
 
     for _ in 0..iterations {
         result = add_array(n, x);
     }
 
-    let end = Date::now();
+    // performance.now()を呼び出して終了時刻を取得
+    let end = now_fn
+        .call1(&performance_obj, &js_sys::Array::new())
+        .map_err(|_| worker::Error::RustError("Failed to call performance.now()".to_string()))?
+        .as_f64()
+        .ok_or_else(|| worker::Error::RustError("performance.now() did not return a number".to_string()))?;
+    
     let execution_time_ms = end - start;
 
     let benchmark_result = BenchmarkResult::new(n, x, iterations, execution_time_ms, result);
