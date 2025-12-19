@@ -15,3 +15,11 @@ pub fn get_f64_param(params: &HashMap<String, String>, key: &str, default: f64) 
         .and_then(|v| v.parse::<f64>().ok())
         .unwrap_or(default)
 }
+
+/// パラメータからu64の値を取得する（デフォルト値付き）
+pub fn get_u64_param(params: &HashMap<String, String>, key: &str, default: u64) -> u64 {
+    params
+        .get(key)
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(default)
+}
