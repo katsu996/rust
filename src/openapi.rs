@@ -11,6 +11,9 @@ use crate::models::{BenchmarkResult, CalculationResult, WelcomeResponse};
 /// title, description, version, authors は `Cargo.toml` から自動取得
 #[derive(OpenApi)]
 #[openapi(
+    info(
+        title = "Rust API"
+    ),
     paths(
         crate::openapi::root,
         crate::openapi::add,
@@ -60,7 +63,7 @@ fn add() {}
 
 /// 引き算
 ///
-/// 2つの数値を引き算します（a - b）
+/// 2つの数値を引き算します
 #[allow(dead_code)]
 #[utoipa::path(
     get,
@@ -76,10 +79,10 @@ fn add() {}
 )]
 fn sub() {}
 
-/// ベンチマーク: add_array
+/// ベンチマーク
 ///
 /// 配列の各要素に+1する処理を指定回数実行し、実行時間を計測します。
-/// 各言語ごとの実行速度の比較、ベンチマークで使用することを目的としています。
+/// 各言語ごとの実行速度の比較、ベンチマークで使用することを目的としています
 #[allow(dead_code)]
 #[utoipa::path(
     get,

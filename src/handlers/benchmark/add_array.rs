@@ -1,6 +1,6 @@
-use worker::{Response, Result, Url};
-use js_sys::{JsString, Reflect, Function};
+use js_sys::{Function, JsString, Reflect};
 use wasm_bindgen::{JsCast, JsValue};
+use worker::{Response, Result, Url};
 
 use crate::models::BenchmarkResult;
 use crate::utils::{get_u64_param, json_response, parse_query_params};
@@ -109,5 +109,3 @@ fn run_benchmark(n: u64, x: u64, iterations: u64) -> u64 {
     }
     result
 }
-
-

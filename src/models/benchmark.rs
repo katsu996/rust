@@ -37,5 +37,3 @@ impl BenchmarkResult {
         }
     }
 }
-
-
