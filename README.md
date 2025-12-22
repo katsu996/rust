@@ -12,12 +12,30 @@ Cloudflare Workers で動作する Rust ベースの計算API です。
 
 ## API エンドポイント
 
+### REST API
+
 | エンドポイント | 説明 |
 |---------------|------|
 | `GET /math/add?a=X&b=Y` | 足し算（X + Y） |
 | `GET /math/sub?a=X&b=Y` | 引き算（X - Y） |
 | `GET /openapi.json` | OpenAPI 仕様（JSON） |
 | `GET /docs` | Swagger UI |
+| `GET /health` | ヘルスチェック |
+
+### WebSocket API
+
+| エンドポイント | 説明 |
+|---------------|------|
+| `GET /ws?roomId=<room-id>` | WebSocket接続（GameSession Durable Objectへ接続） |
+
+#### WebSocket接続の要件
+
+- **必須ヘッダー**:
+  - `Upgrade: websocket`
+  - `Connection: Upgrade`
+- **必須クエリパラメータ**:
+  - `roomId`: ルームID
+- **Origin検証**: 開発環境では `localhost` を許可
 
 ### レスポンス例
 

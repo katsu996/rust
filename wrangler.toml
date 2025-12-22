@@ -5,3 +5,14 @@ compatibility_date = "2025-12-13"
 [build]
 command = "cargo install -q worker-build && worker-build --release"
 watch_dir = ["src"]
+
+# Durable Objects bindings
+[[durable_objects.bindings]]
+name = "GAME_SESSION"
+class_name = "GameSession"
+script_name = "rust"
+
+[[durable_objects.bindings]]
+name = "ROOM_MANAGER"
+class_name = "RoomManager"
+script_name = "rust"
