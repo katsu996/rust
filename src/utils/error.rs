@@ -4,58 +4,100 @@ use worker::{Response, Result};
 /// エラーコード
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
+    InternalError,
+    InvalidRoomId,
     InvalidUpgradeHeader,
     InvalidOrigin,
-    InvalidRoomId,
+    #[allow(dead_code)] // 将来の使用のために保持
     DurableObjectError,
-    InternalError,
 }
 
 impl ErrorCode {
-    pub fn as_str(&self) -> &'static str {
+    /// エラーコードを文字列に変換
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
         match self {
-            ErrorCode::InvalidUpgradeHeader => "INVALID_UPGRADE_HEADER",
-            ErrorCode::InvalidOrigin => "INVALID_ORIGIN",
-            ErrorCode::InvalidRoomId => "INVALID_ROOM_ID",
-            ErrorCode::DurableObjectError => "DURABLE_OBJECT_ERROR",
-            ErrorCode::InternalError => "INTERNAL_ERROR",
+            Self::InternalError => "INTERNAL_ERROR",
+            Self::InvalidRoomId => "INVALID_ROOM_ID",
+            Self::InvalidUpgradeHeader => "INVALID_UPGRADE_HEADER",
+            Self::InvalidOrigin => "INVALID_ORIGIN",
+            Self::DurableObjectError => "DURABLE_OBJECT_ERROR",
         }
     }
 }
 
 /// エラーレスポンス
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    pub error: ErrorInfo,
+    error: ErrorResponseInner,
 }
 
-#[derive(Serialize)]
-pub struct ErrorInfo {
-    pub code: String,
-    pub message: String,
+#[derive(Debug, Serialize)]
+struct ErrorResponseInner {
+    code: &'static str,
+    message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub retryable: Option<bool>,
+    retryable: Option<bool>,
 }
 
 impl ErrorResponse {
+    /// 新しいエラーレスポンスを作成
+    #[must_use]
     pub fn new(code: ErrorCode, message: String, retryable: Option<bool>) -> Self {
         Self {
-            error: ErrorInfo {
-                code: code.as_str().to_string(),
+            error: ErrorResponseInner {
+                code: code.as_str(),
                 message,
                 retryable,
             },
         }
     }
 
+    /// HTTPレスポンスに変換
     pub fn to_response(&self, status: u16) -> Result<Response> {
-        let json = serde_json::to_string(self)
-            .map_err(|e| worker::Error::RustError(e.to_string()))?;
+        let json =
+            serde_json::to_string(&self).map_err(|e| worker::Error::RustError(e.to_string()))?;
 
-        let mut headers = worker::Headers::new();
+        let headers = worker::Headers::new();
         headers.set("Content-Type", "application/json")?;
 
-        Response::error(&json, status)?.with_headers(headers)
+        Ok(Response::ok(json)?
+            .with_status(status)
+            .with_headers(headers))
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_code_as_str() {
+        assert_eq!(ErrorCode::InternalError.as_str(), "INTERNAL_ERROR");
+        assert_eq!(ErrorCode::InvalidRoomId.as_str(), "INVALID_ROOM_ID");
+        assert_eq!(
+            ErrorCode::InvalidUpgradeHeader.as_str(),
+            "INVALID_UPGRADE_HEADER"
+        );
+        assert_eq!(ErrorCode::InvalidOrigin.as_str(), "INVALID_ORIGIN");
+        assert_eq!(
+            ErrorCode::DurableObjectError.as_str(),
+            "DURABLE_OBJECT_ERROR"
+        );
+    }
+
+    #[test]
+    fn test_error_response_creation() {
+        let response = ErrorResponse::new(
+            ErrorCode::InternalError,
+            "Test error".to_string(),
+            Some(false),
+        );
+
+        // シリアライズしてJSON構造を確認
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("INTERNAL_ERROR"));
+        assert!(json.contains("Test error"));
+        assert!(json.contains("retryable"));
+    }
+}

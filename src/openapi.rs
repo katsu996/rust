@@ -4,7 +4,11 @@
 
 use utoipa::OpenApi;
 
-use crate::models::{BenchmarkResult, CalculationResult, WelcomeResponse};
+use crate::models::{
+    BenchmarkResult, CalculationResult, CreateRoomRequest, CreateRoomResponse, ErrorInfo,
+    JoinRoomRequest, JoinRoomResponse, QuickMatchRequest, QuickMatchResponse, RoomErrorResponse,
+    RoomSettings, WelcomeResponse,
+};
 
 /// `OpenAPI` ドキュメント定義
 ///
@@ -18,13 +22,30 @@ use crate::models::{BenchmarkResult, CalculationResult, WelcomeResponse};
         crate::openapi::root,
         crate::openapi::add,
         crate::openapi::sub,
-        crate::openapi::benchmark_add_array
+        crate::openapi::benchmark_add_array,
+        crate::openapi::quick_match,
+        crate::openapi::create_room,
+        crate::openapi::join_room
     ),
-    components(schemas(WelcomeResponse, CalculationResult, BenchmarkResult)),
+    components(schemas(
+        WelcomeResponse,
+        CalculationResult,
+        BenchmarkResult,
+        RoomSettings,
+        QuickMatchRequest,
+        QuickMatchResponse,
+        CreateRoomRequest,
+        CreateRoomResponse,
+        JoinRoomRequest,
+        JoinRoomResponse,
+        ErrorInfo,
+        RoomErrorResponse
+    )),
     tags(
         (name = "General", description = "一般エンドポイント"),
         (name = "Math", description = "計算エンドポイント"),
-        (name = "Benchmark", description = "ベンチマークエンドポイント")
+        (name = "Benchmark", description = "ベンチマークエンドポイント"),
+        (name = "Rooms", description = "ルーム管理エンドポイント")
     )
 )]
 pub struct ApiDoc;
@@ -99,7 +120,63 @@ fn sub() {}
 )]
 fn benchmark_add_array() {}
 
+/// Quick Match
+///
+/// 空きのあるQuick matchルームを検索し、見つからなければ新規作成します。
+#[allow(dead_code)]
+#[utoipa::path(
+    post,
+    path = "/api/rooms/quick-match",
+    tag = "Rooms",
+    request_body = QuickMatchRequest,
+    responses(
+        (status = 200, description = "ルームID", body = QuickMatchResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn quick_match() {}
+
+/// カスタムルーム作成
+///
+/// カスタム設定でルームを作成し、roomCodeを発行します。
+#[allow(dead_code)]
+#[utoipa::path(
+    post,
+    path = "/api/rooms/create-room",
+    tag = "Rooms",
+    request_body = CreateRoomRequest,
+    responses(
+        (status = 200, description = "ルームIDとルームコード", body = CreateRoomResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn create_room() {}
+
+/// カスタムルーム参加
+///
+/// roomCodeを使用してカスタムルームに参加します。
+#[allow(dead_code)]
+#[utoipa::path(
+    post,
+    path = "/api/rooms/join-room",
+    tag = "Rooms",
+    request_body = JoinRoomRequest,
+    responses(
+        (status = 200, description = "ルームID", body = JoinRoomResponse),
+        (status = 400, description = "ルームが満員", body = RoomErrorResponse),
+        (status = 404, description = "ルームが見つからない", body = RoomErrorResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn join_room() {}
+
 /// `OpenAPI` スキーマを JSON 文字列として取得
 pub fn get_openapi_json() -> String {
-    ApiDoc::openapi().to_pretty_json().unwrap()
+    ApiDoc::openapi()
+        .to_pretty_json()
+        .unwrap_or_else(|e| {
+            worker::console_log!("Failed to generate OpenAPI JSON: {:?}", e);
+            // エラー時は空のJSONを返す
+            r#"{"openapi":"3.1.0","info":{"title":"Rust API","version":"1.0.0"},"paths":{},"components":{},"tags":[]}"#.to_string()
+        })
 }

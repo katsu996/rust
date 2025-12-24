@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket接続テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        input {
+            width: 300px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #log {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            background-color: white;
+        }
+        .log-error {
+            border-left-color: #f44336;
+        }
+        .log-message {
+            border-left-color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket接続テスト</h1>
+
+    <div class="container">
+        <h2>接続設定</h2>
+        <div>
+            <label for="roomId">Room ID:</label>
+            <input type="text" id="roomId" value="test-room" placeholder="ルームIDを入力">
+        </div>
+        <div>
+            <button id="connectBtn" onclick="connect()">接続</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>切断</button>
+            <button onclick="clearLog()">ログクリア</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>メッセージ送信</h2>
+        <div>
+            <input type="text" id="messageInput" placeholder="メッセージを入力" disabled>
+            <button id="sendBtn" onclick="sendMessage()" disabled>送信</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>ログ</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function connect() {
+            const roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                alert('Room IDを入力してください');
+                return;
+            }
+
+            const url = `ws://127.0.0.1:8787/ws?roomId=${encodeURIComponent(roomId)}`;
+            log(`接続中: ${url}`, 'info');
+
+            try {
+                ws = new WebSocket(url);
+
+                ws.onopen = () => {
+                    log('✅ WebSocket接続が確立されました', 'info');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('messageInput').disabled = false;
+                    document.getElementById('sendBtn').disabled = false;
+                };
+
+                ws.onmessage = (event) => {
+                    log(`📨 受信: ${event.data}`, 'message');
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`   (解析済み): ${JSON.stringify(data, null, 2)}`, 'message');
+                    } catch (e) {
+                        // JSONでない場合はそのまま表示
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    log(`❌ エラー: ${error.message || 'WebSocket接続エラー'}`, 'error');
+                    console.error('WebSocket error:', error);
+                };
+
+                ws.onclose = (event) => {
+                    log(`🔌 接続が閉じられました (コード: ${event.code}, 理由: ${event.reason || 'なし'})`, 'info');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    document.getElementById('messageInput').disabled = true;
+                    document.getElementById('sendBtn').disabled = true;
+                };
+            } catch (error) {
+                log(`❌ 接続エラー: ${error.message}`, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            try {
+                // JSONメッセージとして送信
+                const data = JSON.parse(message);
+                ws.send(JSON.stringify(data));
+                log(`📤 送信: ${message}`, 'info');
+                document.getElementById('messageInput').value = '';
+            } catch (e) {
+                // JSONでない場合はそのまま送信
+                ws.send(message);
+                log(`📤 送信: ${message}`, 'info');
+                document.getElementById('messageInput').value = '';
+            }
+        }
+
+        // Enterキーで送信
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

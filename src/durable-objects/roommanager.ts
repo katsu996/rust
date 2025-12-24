@@ -1,19 +1,20 @@
-import { RoomInfo, RoomSettings, ClientMessage } from "./types";
+import { RoomInfo, RoomSettings } from "./types";
 
 /**
  * RoomManager Durable Object
  * マッチング/ルーム一覧を管理する集中コンポーネント
  */
 export class RoomManager {
-  private state: DurableObjectState;
-  private env: Env;
+  // Durable Object State
+  ctx: DurableObjectState;
+  env: Env;
 
   // メモリ上の状態
   private rooms: Map<string, RoomInfo> = new Map();
   private codeToRoomId: Map<string, string> = new Map();
 
-  constructor(state: DurableObjectState, env: Env) {
-    this.state = state;
+  constructor(ctx: DurableObjectState, env: Env) {
+    this.ctx = ctx;
     this.env = env;
   }
 
@@ -277,14 +278,14 @@ export class RoomManager {
       })),
       codeToRoomId: Array.from(this.codeToRoomId.entries()),
     };
-    await this.state.storage.put("rooms", serializableState);
+    await this.ctx.storage.put("rooms", serializableState);
   }
 
   /**
    * 状態を復元
    */
   private async restoreState(): Promise<void> {
-    const stored = await this.state.storage.get<any>("rooms");
+    const stored = await this.ctx.storage.get<any>("rooms");
     if (stored) {
       this.rooms = new Map(
         stored.rooms.map((r: any) => [
@@ -309,4 +310,3 @@ export class RoomManager {
 interface Env {
   // 将来の環境変数やバインディング
 }
-

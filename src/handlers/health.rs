@@ -4,4 +4,3 @@ use worker::{Response, Result};
 pub fn handle() -> Result<Response> {
     Response::ok("OK")
 }
-

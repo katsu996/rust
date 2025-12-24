@@ -22,6 +22,7 @@ export type ServerMessageType =
   | "room_created"
   | "player_joined"
   | "player_left"
+  | "host_changed"
   | "round_start"
   | "exclamation_show"
   | "player_reaction"
@@ -73,6 +74,8 @@ export interface ServerMessage {
   falseStartsByPlayerId?: Record<string, number>;
   readyByPlayerId?: Record<string, boolean>;
   countdown?: number;
+  gameOver?: boolean;
+  gameWinnerId?: string;
   error?: {
     code: string;
     message: string;
@@ -106,6 +109,7 @@ export interface GameState {
   countdownStarted: boolean;
   winsByPlayerId: Record<string, number>;
   falseStartsByPlayerId: Record<string, number>;
+  rematchRequests?: Record<string, boolean>; // playerId -> accepted (rematchに同意したか)
 }
 
 // ルーム情報
@@ -116,4 +120,3 @@ export interface RoomInfo {
   playerIds: Set<string>;
   settings: RoomSettings;
 }
-

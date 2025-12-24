@@ -13,10 +13,13 @@ async fn main_router(req: Request, env: Env, _ctx: Context) -> Result<Response> 
     let path = url.path();
     let method = req.method();
 
-    match (method, path.as_str()) {
+    match (method, path) {
         (Method::Get, "/") => handlers::root::handle(),
         (Method::Get, "/health") => handlers::health::handle(),
         (Method::Get, "/ws") => handlers::websocket::handle_ws(req, env).await,
+        (Method::Post, "/api/rooms/quick-match") => handlers::rooms::handle_quick_match(req, env).await,
+        (Method::Post, "/api/rooms/create-room") => handlers::rooms::handle_create_room(req, env).await,
+        (Method::Post, "/api/rooms/join-room") => handlers::rooms::handle_join_room(req, env).await,
         (Method::Get, "/math/add") => handlers::math::add::handle(&url),
         (Method::Get, "/math/sub") => handlers::math::sub::handle(&url),
         (Method::Get, "/benchmark/add_array") => handlers::benchmark::add_array::handle(&url),
