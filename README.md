@@ -79,7 +79,7 @@ Cloudflare Workers で動作する Rust ベースの計算API です。
 ```json
 {
   "roomId": "room-1234567890-abc123",
-  "roomCode": "ABCD"
+  "roomCode": "1234"
 }
 ```
 
@@ -92,7 +92,7 @@ roomCodeを使用してカスタムルームに参加します。
 ```json
 {
   "playerId": "player-456",
-  "roomCode": "ABCD"
+  "roomCode": "1234"
 }
 ```
 
@@ -299,7 +299,7 @@ curl -X POST http://127.0.0.1:8787/api/join-room \
   -H "Content-Type: application/json" \
   -d '{
     "playerId": "player-456",
-    "roomCode": "ABCD"
+    "roomCode": "1234"
   }'
 ```
 
@@ -340,14 +340,14 @@ curl -X POST http://127.0.0.1:8787/api/join-room \
      -d '{"playerId": "player-1", "customRoomSettings": {...}}'
    ```
 
-   レスポンス: `{"roomId": "room-123", "roomCode": "ABCD"}`
+   レスポンス: `{"roomId": "room-123", "roomCode": "1234"}`
 
 2. **ルーム参加**（別プレイヤー）
 
    ```bash
    curl -X POST http://127.0.0.1:8787/api/join-room \
      -H "Content-Type: application/json" \
-     -d '{"playerId": "player-2", "roomCode": "ABCD"}'
+     -d '{"playerId": "player-2", "roomCode": "1234"}'
    ```
 
 3. **WebSocket接続**（両プレイヤー）

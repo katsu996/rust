@@ -124,6 +124,7 @@ describe("REST API Integration Tests", () => {
                 expect(data).toHaveProperty("roomCode");
                 expect(typeof data.roomCode).toBe("string");
                 expect(data.roomCode.length).toBe(4);
+                expect(data.roomCode).toMatch(/^\d{4}$/); // 数字4桁のみ
             });
 
         it.skipIf(!serverAvailable)(
@@ -177,7 +178,7 @@ describe("REST API Integration Tests", () => {
                     },
                     body: JSON.stringify({
                         playerId: "test-player-6",
-                        roomCode: "XXXX",
+                        roomCode: "9999",
                     }),
                 });
 

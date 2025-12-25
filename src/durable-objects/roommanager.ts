@@ -253,13 +253,13 @@ export class RoomManager {
   }
 
   /**
-   * roomCodeを生成（4文字の英数字）
+   * roomCodeを生成（4桁の数字）
    */
   private generateRoomCode(): string {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const digits = "0123456789";
     let code = "";
     for (let i = 0; i < 4; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += digits.charAt(Math.floor(Math.random() * digits.length));
     }
     return code;
   }

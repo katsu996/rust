@@ -52,8 +52,8 @@ pub struct CreateRoomResponse {
     /// ルームID
     #[schema(example = "room-1234567890-abc123")]
     pub room_id: String,
-    /// ルームコード（4文字の英数字）
-    #[schema(example = "ABCD")]
+    /// ルームコード（4桁の数字）
+    #[schema(example = "1234")]
     pub room_code: String,
 }
 
@@ -64,7 +64,7 @@ pub struct JoinRoomRequest {
     #[schema(example = "player-456")]
     pub player_id: String,
     /// ルームコード
-    #[schema(example = "ABCD")]
+    #[schema(example = "1234")]
     pub room_code: String,
 }
 

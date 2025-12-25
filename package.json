@@ -11,7 +11,7 @@
     "lint:strict": "cargo clippy -- -D warnings",
     "check": "pnpm fmt:check && pnpm lint:strict",
     "build:ts": "tsc --noEmit",
-    "build:all": "pnpm build && pnpm runbuild:ts",
+    "build:all": "pnpm build && pnpm run build:ts",
     "test": "pnpm test:rust && pnpm test:ts",
     "test:all": "pnpm test:rust && pnpm test:ts && pnpm test:e2e",
     "test:rust": "cargo test",

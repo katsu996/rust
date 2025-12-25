@@ -64,7 +64,7 @@
 ```json
 {
   "type": "room_created",
-  "roomCode": "ABCD"
+  "roomCode": "1234"
 }
 ```
 

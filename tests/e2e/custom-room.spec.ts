@@ -84,7 +84,7 @@ test.describe("Custom Room E2E", () => {
         const response = await request.post("/api/join-room", {
             data: {
                 playerId: "e2e-player-error",
-                roomCode: "XXXX",
+                roomCode: "9999",
             },
         });
 
