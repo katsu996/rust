@@ -28,3 +28,15 @@ class_name = "RoomManager"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["GameSession", "RoomManager"]
+
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1

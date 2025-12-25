@@ -51,37 +51,32 @@ export class GameSession {
    * fetch メソッド - WebSocket Upgrade と HTTP リクエストを処理
    */
   async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    console.log(`[GameSession] fetch called, URL: ${url}, Upgrade header: ${request.headers.get("Upgrade")}`);
+    const upgradeHeader = request.headers.get("Upgrade");
 
     // WebSocket Upgrade リクエストの処理
-    const upgradeHeader = request.headers.get("Upgrade");
     if (upgradeHeader === "websocket") {
-      console.log("[GameSession] Handling WebSocket upgrade");
-      return this.handleWebSocketUpgrade(request);
+      try {
+        return await this.handleWebSocketUpgrade(request);
+      } catch (error) {
+        console.error(`[GameSession] Error handling WebSocket upgrade:`, error);
+        return new Response(`WebSocket upgrade failed: ${error}`, { status: 500 });
+      }
     }
 
     // HTTP リクエストの処理（将来の拡張用）
-    console.log("[GameSession] Not a WebSocket upgrade, returning 501");
     return new Response("Not implemented", { status: 501 });
   }
 
   /**
    * WebSocket Upgrade 処理
+   * Rust Workerから転送されたWebSocket接続を処理
    */
   private async handleWebSocketUpgrade(request: Request): Promise<Response> {
-    console.log("[GameSession] handleWebSocketUpgrade called");
-    const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair);
-
     // roomId を URL から取得
     const url = new URL(request.url);
     const roomId = url.searchParams.get("roomId") || "";
 
-    console.log(`[GameSession] roomId from URL: ${roomId}`);
-
     if (!roomId) {
-      console.log("[GameSession] roomId is missing, returning 400");
       return new Response("roomId is required", { status: 400 });
     }
 
@@ -89,42 +84,23 @@ export class GameSession {
 
     // 状態を復元
     await this.restoreState();
-    console.log("[GameSession] State restored");
+
+    // Rust Workerから転送されたWebSocket接続を処理
+    // Cloudflare Workersでは、WebSocket接続はRequestから直接取得できないため、
+    // WebSocketPairを作成して処理する必要があります
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
 
     // WebSocketをacceptする（メッセージ送信前に必要）
     // @ts-ignore - DurableObjectStateの型定義が不完全な可能性がある
     this.ctx.acceptWebSocket(server);
-
-    // WebSocket 接続を処理
-    this.handleWebSocketConnect(server, roomId);
-    console.log("[GameSession] WebSocket connection handled");
-
-    // クライアント側の WebSocket を返す
-    const response = new Response(null, {
-      status: 101,
-      webSocket: client,
-      headers: {
-        Upgrade: "websocket",
-        Connection: "Upgrade",
-      },
-    });
-    console.log("[GameSession] Returning WebSocket response with status 101");
-    return response;
-  }
-
-  /**
-   * WebSocket 接続の処理
-   */
-  private handleWebSocketConnect(ws: WebSocket, roomId: string): void {
-    // Cloudflare Workersでは、WebSocketは自動的にacceptされるため、明示的なaccept()は不要
-    // ws.accept(); // コメントアウト
 
     // プレイヤーIDを生成（実際の実装では認証から取得）
     const playerId = this.generatePlayerId();
 
     // プレイヤー接続を保存
     const connection: PlayerConnection = {
-      ws,
+      ws: server,
       playerId,
       playerName: `Player-${playerId}`,
       rating: 0,
@@ -137,45 +113,10 @@ export class GameSession {
       this.gameState.hostId = playerId;
     }
 
-    // WebSocketイベントハンドラーを設定
-    ws.addEventListener("message", (event) => {
-      try {
-        const message: ClientMessage = JSON.parse(event.data as string);
-        this.handleMessage(playerId, message);
-      } catch (error) {
-        console.error(`Error parsing message from ${playerId}:`, error);
-        this.sendTo(playerId, {
-          type: "error",
-          error: {
-            code: "INVALID_MESSAGE",
-            message: "Failed to parse message",
-          },
-        });
-      }
-    });
-
-    ws.addEventListener("close", () => {
-      this.players.delete(playerId);
-      // ホストが切断した場合、次のプレイヤーをホストに
-      if (this.gameState.hostId === playerId && this.players.size > 0) {
-        const nextHost = Array.from(this.players.values())[0];
-        this.gameState.hostId = nextHost.playerId;
-        this.broadcast({
-          type: "host_changed",
-          newHostId: this.gameState.hostId,
-        });
-      }
-      // 他のプレイヤーに通知
-      this.broadcast({
-        type: "player_left",
-        playerId,
-        playerCount: this.players.size,
-      });
-    });
+    // 注意: acceptWebSocketを使う場合、addEventListenerではなく
+    // webSocketMessageとwebSocketCloseメソッドが自動的に呼び出されます
 
     // 接続確立メッセージを送信
-    // 注意: Cloudflare Workersでは、Responseを返した時点で接続が確立されるため、
-    // すぐにメッセージを送信できる
     this.sendTo(playerId, {
       type: "connection_established",
       roomId,
@@ -195,31 +136,82 @@ export class GameSession {
       playerId
     );
 
-    // WebSocket メッセージの受信処理
-    ws.addEventListener("message", async (event) => {
-      try {
-        const message: ClientMessage = JSON.parse(event.data as string);
-        await this.handleMessage(playerId, message);
-      } catch (error) {
-        console.error("Error handling message:", error);
-        this.sendTo(playerId, {
-          type: "error",
-          error: {
-            code: "INVALID_MESSAGE",
-            message: "Failed to parse message",
-          },
-        });
-      }
-    });
-
-    // WebSocket 切断処理
-    ws.addEventListener("close", () => {
-      this.handleDisconnect(playerId);
-    });
-
     // 状態を保存
     this.saveState();
+
+    // クライアント側の WebSocket を返す
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+      headers: {
+        Upgrade: "websocket",
+        Connection: "Upgrade",
+      },
+    });
   }
+
+  /**
+   * WebSocket メッセージイベントハンドラー
+   * acceptWebSocketで受け入れたWebSocketのメッセージは、このメソッドで処理されます
+   */
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    console.log(`[GameSession] webSocketMessage called`);
+
+    // WebSocketからplayerIdを取得
+    const playerId = this.getPlayerIdByWebSocket(ws);
+    if (!playerId) {
+      console.error("[GameSession] Player not found for WebSocket");
+      return;
+    }
+
+    console.log(`[GameSession] Message received from ${playerId}:`, message);
+    try {
+      const messageStr = typeof message === "string" ? message : new TextDecoder().decode(message);
+      console.log(`[GameSession] Parsed message string:`, messageStr);
+      const clientMessage: ClientMessage = JSON.parse(messageStr);
+      console.log(`[GameSession] Parsed client message:`, clientMessage);
+      await this.handleMessage(playerId, clientMessage);
+    } catch (error) {
+      console.error(`[GameSession] Error parsing message from ${playerId}:`, error);
+      this.sendTo(playerId, {
+        type: "error",
+        error: {
+          code: "INVALID_MESSAGE",
+          message: "Failed to parse message",
+        },
+      });
+    }
+  }
+
+  /**
+   * WebSocket 切断イベントハンドラー
+   * acceptWebSocketで受け入れたWebSocketの切断は、このメソッドで処理されます
+   */
+  async webSocketClose(ws: WebSocket): Promise<void> {
+    console.log("[GameSession] webSocketClose called");
+
+    // WebSocketからplayerIdを取得
+    const playerId = this.getPlayerIdByWebSocket(ws);
+    if (!playerId) {
+      console.error("[GameSession] Player not found for WebSocket");
+      return;
+    }
+
+    this.handleDisconnect(playerId);
+  }
+
+  /**
+   * WebSocketからplayerIdを取得
+   */
+  private getPlayerIdByWebSocket(ws: WebSocket): string | null {
+    for (const [playerId, conn] of this.players.entries()) {
+      if (conn.ws === ws) {
+        return playerId;
+      }
+    }
+    return null;
+  }
+
 
   /**
    * メッセージハンドラー

@@ -73,6 +73,13 @@
             <input type="text" id="roomId" value="test-room" placeholder="ルームIDを入力">
         </div>
         <div>
+            <label for="serverUrl">サーバーURL:</label>
+            <select id="serverUrl" style="padding: 10px; margin: 5px; font-size: 14px; width: 320px;">
+                <option value="ws://127.0.0.1:8787" selected>ローカル (ws://127.0.0.1:8787)</option>
+                <option value="wss://rust.katsu996.workers.dev">本番環境 (wss://rust.katsu996.workers.dev)</option>
+            </select>
+        </div>
+        <div>
             <button id="connectBtn" onclick="connect()">接続</button>
             <button id="disconnectBtn" onclick="disconnect()" disabled>切断</button>
             <button onclick="clearLog()">ログクリア</button>
@@ -82,8 +89,12 @@
     <div class="container">
         <h2>メッセージ送信</h2>
         <div>
-            <input type="text" id="messageInput" placeholder="メッセージを入力" disabled>
+            <input type="text" id="messageInput" placeholder='JSON形式で入力 (例: {"action":"join_room","data":{}})' disabled>
             <button id="sendBtn" onclick="sendMessage()" disabled>送信</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <button onclick="sendJoinRoom()" disabled id="quickJoinBtn">join_room送信</button>
+            <button onclick="sendReadyToggle()" disabled id="quickReadyBtn">ready_toggle送信</button>
         </div>
     </div>
 
@@ -116,7 +127,9 @@
                 return;
             }
 
-            const url = `ws://127.0.0.1:8787/ws?roomId=${encodeURIComponent(roomId)}`;
+            // サーバーURLの取得
+            let serverUrl = document.getElementById('serverUrl').value.trim();
+            const url = `${serverUrl}/ws?roomId=${encodeURIComponent(roomId)}`;
             log(`接続中: ${url}`, 'info');
 
             try {
@@ -128,6 +141,8 @@
                     document.getElementById('disconnectBtn').disabled = false;
                     document.getElementById('messageInput').disabled = false;
                     document.getElementById('sendBtn').disabled = false;
+                    document.getElementById('quickJoinBtn').disabled = false;
+                    document.getElementById('quickReadyBtn').disabled = false;
                 };
 
                 ws.onmessage = (event) => {
@@ -146,11 +161,19 @@
                 };
 
                 ws.onclose = (event) => {
-                    log(`🔌 接続が閉じられました (コード: ${event.code}, 理由: ${event.reason || 'なし'})`, 'info');
+                    // disconnect関数から呼び出された場合は既にログが表示されているため、
+                    // サーバー側から切断された場合のみログを表示
+                    if (ws) {
+                        log(`🔌 接続が閉じられました (コード: ${event.code}, 理由: ${event.reason || 'なし'})`, 'info');
+                    }
+                    // UIの状態を更新（重複しても問題ない）
                     document.getElementById('connectBtn').disabled = false;
                     document.getElementById('disconnectBtn').disabled = true;
                     document.getElementById('messageInput').disabled = true;
                     document.getElementById('sendBtn').disabled = true;
+                    document.getElementById('quickJoinBtn').disabled = true;
+                    document.getElementById('quickReadyBtn').disabled = true;
+                    ws = null;
                 };
             } catch (error) {
                 log(`❌ 接続エラー: ${error.message}`, 'error');
@@ -159,8 +182,20 @@
 
         function disconnect() {
             if (ws) {
-                ws.close();
-                ws = null;
+                log('🔌 切断中...', 'info');
+                const currentWs = ws;
+                ws = null; // 先にnullにして、oncloseイベントの重複処理を防ぐ
+                currentWs.close();
+                // UIの状態を即座に更新
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('sendBtn').disabled = true;
+                document.getElementById('quickJoinBtn').disabled = true;
+                document.getElementById('quickReadyBtn').disabled = true;
+                log('✅ 切断完了', 'info');
+            } else {
+                log('⚠️ 接続が存在しません', 'info');
             }
         }
 
@@ -190,6 +225,25 @@
                 sendMessage();
             }
         });
+
+        // クイック送信関数
+        function sendJoinRoom() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            const message = { action: 'join_room', data: {} };
+            ws.send(JSON.stringify(message));
+            log(`📤 送信: ${JSON.stringify(message)}`, 'info');
+        }
+
+        function sendReadyToggle() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            const message = { action: 'ready_toggle', data: {} };
+            ws.send(JSON.stringify(message));
+            log(`📤 送信: ${JSON.stringify(message)}`, 'info');
+        }
     </script>
 </body>
 </html>

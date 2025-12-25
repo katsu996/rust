@@ -19,7 +19,7 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
     let room_id = match extract_room_id(&req) {
         Ok(id) => id,
         Err(e) => {
-            worker::console_log!("Failed to extract roomId: {:?}", e);
+            worker::console_log!("[WebSocket] Failed to extract roomId: {:?}", e);
             let error = ErrorResponse::new(
                 ErrorCode::InvalidRoomId,
                 format!("Failed to extract roomId: {e}"),
@@ -32,34 +32,34 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
     };
 
     // 4. GameSession DOへの接続
-    worker::console_log!("WebSocket connection request for roomId: {}", room_id);
-
     let namespace = env.durable_object("GAME_SESSION").map_err(|e| {
-        worker::console_log!("Failed to get GAME_SESSION namespace: {:?}", e);
+        worker::console_log!("[WebSocket] Failed to get GAME_SESSION namespace: {:?}", e);
         worker::Error::RustError("Failed to get Durable Object namespace".to_string())
     })?;
 
     let id = namespace.id_from_name(&room_id).map_err(|e| {
-        worker::console_log!("Failed to get DO ID from name: {:?}", e);
+        worker::console_log!("[WebSocket] Failed to get DO ID from name: {:?}", e);
         worker::Error::RustError("Failed to get Durable Object ID".to_string())
     })?;
 
-    worker::console_log!("Got DO ID for roomId: {}", room_id);
-
     // DO 側の fetch が WebSocket Upgrade を処理する
     let stub = id.get_stub().map_err(|e| {
-        worker::console_log!("Failed to get DO stub: {:?}", e);
+        worker::console_log!("[WebSocket] Failed to get DO stub: {:?}", e);
         worker::Error::RustError("Failed to get Durable Object stub".to_string())
     })?;
 
-    worker::console_log!("Got DO stub, forwarding request to DO");
-
     let resp = stub.fetch_with_request(req).await.map_err(|e| {
-        worker::console_log!("Failed to fetch from DO: {:?}", e);
+        worker::console_log!("[WebSocket] Failed to fetch from DO: {:?}", e);
         worker::Error::RustError("Failed to connect to Durable Object".to_string())
     })?;
 
-    worker::console_log!("Got response from DO, status: {}", resp.status_code());
+    let status = resp.status_code();
+    if status != 101 {
+        worker::console_log!(
+            "[WebSocket] WARNING: Expected status 101 (Switching Protocols), got {}",
+            status
+        );
+    }
 
     Ok(resp)
 }
@@ -143,57 +143,53 @@ fn validate_upgrade_headers(req: &Request) -> Option<Response> {
 
 /// Origin検証
 /// エラー時はSome(Response)を返し、成功時はNoneを返す
-fn validate_origin(req: &Request, _env: &Env) -> Option<Response> {
+fn validate_origin(req: &Request, env: &Env) -> Option<Response> {
     let headers = req.headers();
     let Ok(origin) = headers.get("Origin") else {
         // Originヘッダの取得に失敗した場合、開発環境では許可
-        worker::console_log!("Warning: Failed to get Origin header, allowing in dev mode");
         return None;
     };
 
-    // 開発環境では localhost と null origin (file://) を許可
-    // 本番環境では環境変数から許可されたOriginリストを取得
-    let allowed_origins = [
-        "http://localhost:3000",
-        "http://localhost:8787",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8787",
-        "null", // file://プロトコルからの接続
+    // デフォルトの許可されたOriginリスト
+    let mut allowed_origins: Vec<String> = vec![
+        "http://localhost:3000".to_string(),
+        "http://localhost:8080".to_string(),
+        "http://localhost:8787".to_string(),
+        "http://127.0.0.1:3000".to_string(),
+        "http://127.0.0.1:8080".to_string(),
+        "http://127.0.0.1:8787".to_string(),
+        "https://rust.katsu996.workers.dev".to_string(),
+        "null".to_string(),
     ];
+
+    // 環境変数から追加の許可されたOriginを取得
+    if let Ok(allowed_origins_env) = env.var("ALLOWED_ORIGINS") {
+        let origins_str = allowed_origins_env.to_string();
+        let additional_origins: Vec<String> = origins_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        allowed_origins.extend(additional_origins);
+    }
 
     if let Some(orig) = origin {
         let origin_str: String = orig.clone();
-        worker::console_log!(
-            "Checking origin: '{}' (len: {})",
-            origin_str,
-            origin_str.len()
-        );
 
         // "null" origin (file://プロトコル) も許可
         let is_allowed = if origin_str == "null" {
-            worker::console_log!("Origin is 'null', allowing");
             true
         } else {
-            let matched = allowed_origins.iter().any(|&allowed| {
-                let matches = origin_str == allowed;
-                if matches {
-                    worker::console_log!("Origin matches allowed: {}", allowed);
-                }
-                matches
-            });
-            if !matched {
-                worker::console_log!("Origin '{}' does not match any allowed origin", origin_str);
-            }
-            matched
+            allowed_origins.contains(&origin_str)
         };
 
-        if is_allowed {
-            worker::console_log!("Origin allowed: {}", origin_str);
-        } else {
-            worker::console_log!("Invalid origin: {}", origin_str);
+        if !is_allowed {
+            worker::console_log!("[WebSocket] Invalid origin: {}", origin_str);
             let error = ErrorResponse::new(
                 ErrorCode::InvalidOrigin,
-                format!("Origin not allowed: {origin_str}"),
+                format!(
+                    "Origin not allowed: {origin_str}. Please contact support if this is a valid origin."
+                ),
                 Some(false),
             );
             return Some(
@@ -202,10 +198,6 @@ fn validate_origin(req: &Request, _env: &Env) -> Option<Response> {
                     .unwrap_or_else(|_| Response::error("Forbidden", 403).unwrap()),
             );
         }
-    } else {
-        // Originヘッダがない場合、開発環境では許可（file://プロトコルなど）
-        worker::console_log!("Warning: Missing Origin header, allowing in dev mode");
-        return None;
     }
 
     None

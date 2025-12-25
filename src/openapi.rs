@@ -16,7 +16,9 @@ use crate::models::{
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "Rust API"
+        title = "Rust API",
+        description = "Cloudflare Workersで動作するRustベースの計算APIとゲームルーム管理API。WebSocketによるリアルタイム通信をサポートしています。",
+        version = "1.0.0"
     ),
     paths(
         crate::openapi::root,
@@ -25,7 +27,8 @@ use crate::models::{
         crate::openapi::benchmark_add_array,
         crate::openapi::quick_match,
         crate::openapi::create_room,
-        crate::openapi::join_room
+        crate::openapi::join_room,
+        crate::openapi::websocket
     ),
     components(schemas(
         WelcomeResponse,
@@ -45,7 +48,8 @@ use crate::models::{
         (name = "General", description = "一般エンドポイント"),
         (name = "Math", description = "計算エンドポイント"),
         (name = "Benchmark", description = "ベンチマークエンドポイント"),
-        (name = "Rooms", description = "ルーム管理エンドポイント")
+        (name = "Rooms", description = "ルーム管理エンドポイント（Quick Match、カスタムルーム作成・参加）"),
+        (name = "WebSocket", description = "WebSocket接続（リアルタイム通信）")
     )
 )]
 pub struct ApiDoc;
@@ -169,6 +173,30 @@ fn create_room() {}
     )
 )]
 fn join_room() {}
+
+/// WebSocket接続
+///
+/// WebSocket接続を確立し、ゲームセッションに参加します。
+/// ルームIDは `/api/rooms/quick-match` または `/api/rooms/create-room` で取得できます。
+///
+/// **注意**: `OpenAPI` 3.1ではWebSocketを直接サポートしていないため、
+/// このエンドポイントは説明のみです。実際の接続にはWebSocketクライアントが必要です。
+#[allow(dead_code)]
+#[utoipa::path(
+    get,
+    path = "/ws",
+    tag = "WebSocket",
+    params(
+        ("roomId" = String, Query, description = "ルームID（/api/rooms/quick-match または /api/rooms/create-room で取得）")
+    ),
+    responses(
+        (status = 101, description = "WebSocket接続が確立されました（Switching Protocols）"),
+        (status = 400, description = "無効なリクエスト（roomIdが欠如しているなど）"),
+        (status = 403, description = "Originが許可されていません"),
+        (status = 426, description = "WebSocketアップグレードが必要です")
+    )
+)]
+fn websocket() {}
 
 /// `OpenAPI` スキーマを JSON 文字列として取得
 pub fn get_openapi_json() -> String {
