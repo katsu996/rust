@@ -37,7 +37,14 @@ pub async fn handle_quick_match(mut req: Request, env: Env) -> Result<Response> 
                 headers.set("Content-Type", "application/json")?;
                 headers
             })
-            .with_body(Some(serde_json::to_string(&body).unwrap().into())),
+            .with_body(Some(
+                serde_json::to_string(&body)
+                    .map_err(|e| {
+                        worker::console_log!("Failed to serialize request body: {:?}", e);
+                        worker::Error::RustError(format!("JSON serialization failed: {e}"))
+                    })?
+                    .into(),
+            )),
     )?;
 
     let resp = stub.fetch_with_request(do_request).await.map_err(|e| {

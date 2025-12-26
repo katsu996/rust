@@ -1,4 +1,4 @@
-use crate::utils::{ErrorCode, ErrorResponse};
+use crate::utils::{ErrorCode, ErrorResponse, safe_error_response};
 use worker::{Env, Request, Response, Result};
 
 /// `WebSocket`接続ハンドラー
@@ -25,9 +25,7 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
                 format!("Failed to extract roomId: {e}"),
                 Some(false),
             );
-            return Ok(error
-                .to_response(400)
-                .unwrap_or_else(|_| Response::error("Bad Request", 400).unwrap()));
+            return Ok(safe_error_response(&error, 400));
         }
     };
 
@@ -69,30 +67,30 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
 fn validate_upgrade_headers(req: &Request) -> Option<Response> {
     let headers = req.headers();
 
-    let Ok(upgrade) = headers.get("Upgrade") else {
-        let error = ErrorResponse::new(
-            ErrorCode::InternalError,
-            "Failed to get Upgrade header".to_string(),
-            Some(false),
-        );
-        return Some(
-            error
-                .to_response(500)
-                .unwrap_or_else(|_| Response::error("Internal Error", 500).unwrap()),
-        );
+    let upgrade = match headers.get("Upgrade") {
+        Ok(h) => h,
+        Err(e) => {
+            worker::console_log!("Failed to get Upgrade header: {:?}", e);
+            let error = ErrorResponse::new(
+                ErrorCode::InternalError,
+                "Failed to get Upgrade header".to_string(),
+                Some(false),
+            );
+            return Some(safe_error_response(&error, 500));
+        }
     };
 
-    let Ok(connection) = headers.get("Connection") else {
-        let error = ErrorResponse::new(
-            ErrorCode::InternalError,
-            "Failed to get Connection header".to_string(),
-            Some(false),
-        );
-        return Some(
-            error
-                .to_response(500)
-                .unwrap_or_else(|_| Response::error("Internal Error", 500).unwrap()),
-        );
+    let connection = match headers.get("Connection") {
+        Ok(h) => h,
+        Err(e) => {
+            worker::console_log!("Failed to get Connection header: {:?}", e);
+            let error = ErrorResponse::new(
+                ErrorCode::InternalError,
+                "Failed to get Connection header".to_string(),
+                Some(false),
+            );
+            return Some(safe_error_response(&error, 500));
+        }
     };
 
     if upgrade.as_deref() != Some("websocket") {
@@ -102,11 +100,7 @@ fn validate_upgrade_headers(req: &Request) -> Option<Response> {
             "Expected WebSocket upgrade".to_string(),
             Some(false),
         );
-        return Some(
-            error
-                .to_response(426)
-                .unwrap_or_else(|_| Response::error("Upgrade Required", 426).unwrap()),
-        );
+        return Some(safe_error_response(&error, 426));
     }
 
     if let Some(conn) = connection {
@@ -118,11 +112,7 @@ fn validate_upgrade_headers(req: &Request) -> Option<Response> {
                 "Expected Connection: Upgrade header".to_string(),
                 Some(false),
             );
-            return Some(
-                error
-                    .to_response(426)
-                    .unwrap_or_else(|_| Response::error("Upgrade Required", 426).unwrap()),
-            );
+            return Some(safe_error_response(&error, 426));
         }
     } else {
         worker::console_log!("Missing Connection header");
@@ -131,11 +121,7 @@ fn validate_upgrade_headers(req: &Request) -> Option<Response> {
             "Missing Connection header".to_string(),
             Some(false),
         );
-        return Some(
-            error
-                .to_response(426)
-                .unwrap_or_else(|_| Response::error("Upgrade Required", 426).unwrap()),
-        );
+        return Some(safe_error_response(&error, 426));
     }
 
     None
@@ -195,11 +181,7 @@ fn validate_origin(req: &Request, env: &Env) -> Option<Response> {
                 ),
                 Some(false),
             );
-            return Some(
-                error
-                    .to_response(403)
-                    .unwrap_or_else(|_| Response::error("Forbidden", 403).unwrap()),
-            );
+            return Some(safe_error_response(&error, 403));
         }
     }
 

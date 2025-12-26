@@ -90,6 +90,7 @@ mod tests {
 
         // シリアライズしてJSON構造を確認
         // プロンプト要件に合わせて、トップレベルに code, message, retryable が配置される
+        // テストコードでは unwrap を使用して失敗を明示的にする
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"code\":\"INTERNAL_ERROR\""));
         assert!(json.contains("\"message\":\"Test error\""));
