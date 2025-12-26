@@ -26,7 +26,6 @@ fn guaranteed_error_response(status: u16, message: &str) -> Response {
     // すべてが失敗した場合、最後の手段として空のResponseを試行
     // すべての方法が失敗した場合は明確なメッセージと共にパニックする
     Response::from_bytes(vec![])
-    Response::from_bytes(vec![])
         .or_else(|_| Response::ok(""))
         .or_else(|_| Response::error("", status))
         .or_else(|_| Response::from_bytes(b"Error".to_vec()))
