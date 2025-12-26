@@ -9,10 +9,29 @@
     "fmt:check": "cargo fmt --check",
     "lint": "cargo clippy",
     "lint:strict": "cargo clippy -- -D warnings",
-    "check": "cargo fmt --check && cargo clippy -- -D warnings"
+    "check": "pnpm fmt:check && pnpm lint:strict",
+    "build:ts": "tsc --noEmit",
+    "build:all": "pnpm build && pnpm run build:ts",
+    "test": "pnpm test:rust && pnpm test:ts",
+    "test:all": "pnpm test:rust && pnpm test:ts && pnpm test:e2e",
+    "test:rust": "cargo test",
+    "test:ts": "vitest run",
+    "test:ts:unit": "vitest run tests/ts/unit",
+    "test:ts:integration": "vitest run tests/ts/integration",
+    "test:e2e": "playwright test",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251217.0",
-    "wrangler": "^4.56.0"
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^25.0.3",
+    "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^1.0.0",
+    "lefthook": "^2.0.12",
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.0",
+    "wrangler": "^4.56.0",
+    "ws": "^8.14.0"
   }
 }

@@ -12,6 +12,10 @@ pub struct Endpoints {
     pub math: String,
     /// ベンチマークエンドポイント
     pub benchmark: String,
+    /// ルーム管理エンドポイント
+    pub rooms: String,
+    /// `WebSocket`エンドポイント
+    pub websocket: String,
 }
 
 /// ルートエンドポイントのレスポンス
@@ -32,6 +36,8 @@ impl WelcomeResponse {
                 openapi: "/openapi.json".to_string(),
                 math: "/math".to_string(),
                 benchmark: "/benchmark".to_string(),
+                rooms: "/api/rooms".to_string(),
+                websocket: "/ws".to_string(),
             },
         }
     }

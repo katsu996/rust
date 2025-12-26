@@ -1,7 +1,42 @@
 name = "rust"
-main = "build/worker/shim.mjs"
+main = "src/worker-entry.ts"
 compatibility_date = "2025-12-13"
 
 [build]
-command = "cargo install -q worker-build && worker-build --release"
+# Rust Workerをビルド
+# ネットワークエラーが発生する場合は、既存のビルド（build/index.js）を使用します
+# 手動でビルドする場合: cargo build --release --target wasm32-unknown-unknown && worker-build --release
+# 開発時は常に最新のビルドを作成するため、worker-buildを実行します
+command = "cargo build --release --target wasm32-unknown-unknown && worker-build --release"
 watch_dir = ["src"]
+
+# Durable Objects bindings
+# TypeScriptのDurable Objectsは src/worker-entry.ts からエクスポートされます
+# wranglerは自動的にTypeScriptファイルをビルドしてバンドルに含めます
+# script_nameを指定しない場合、同じスクリプト内のDurable Objectsを参照します
+[[durable_objects.bindings]]
+name = "GAME_SESSION"
+class_name = "GameSession"
+
+[[durable_objects.bindings]]
+name = "ROOM_MANAGER"
+class_name = "RoomManager"
+
+# Durable Objects migrations
+# 初回デプロイ時にDurable Objectsクラスを登録するために必要
+# 無料プランでは new_sqlite_classes を使用する必要があります
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameSession", "RoomManager"]
+
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1

@@ -26,7 +26,7 @@ impl PerformanceTimer {
     }
 
     /// 現在時刻を取得する（ミリ秒）
-    /// Performance APIが利用可能な場合はそれを使用し、そうでなければDate::now()を使用
+    /// `Performance` APIが利用可能な場合はそれを使用し、そうでなければ`Date::now()`を使用
     fn now(&self) -> f64 {
         self.perf_api
             .as_ref()
@@ -57,11 +57,11 @@ impl PerformanceTimer {
 /// 配列の各要素の合計値（n * x）
 fn add_array(n: u64, x: u64) -> u64 {
     // 引数n個の要素を持った配列(正確にはベクタ)を作り各要素は0に初期化
-    let mut a = vec![0u64; n as usize];
+    let mut a = vec![0u64; usize::try_from(n).unwrap_or(usize::MAX)];
     // 引数のx回、配列の全要素に+1していく
     for _ in 0..x {
-        for i in 0..n as usize {
-            a[i] += 1;
+        for item in a.iter_mut().take(usize::try_from(n).unwrap_or(usize::MAX)) {
+            *item += 1;
         }
     }
     // 合計値を返す
