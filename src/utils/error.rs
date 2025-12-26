@@ -27,13 +27,9 @@ impl ErrorCode {
 }
 
 /// エラーレスポンス
+/// プロンプト要件に合わせて、トップレベルに code, message, retryable を配置
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    error: ErrorResponseInner,
-}
-
-#[derive(Debug, Serialize)]
-struct ErrorResponseInner {
     code: &'static str,
     message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,11 +41,9 @@ impl ErrorResponse {
     #[must_use]
     pub fn new(code: ErrorCode, message: String, retryable: Option<bool>) -> Self {
         Self {
-            error: ErrorResponseInner {
-                code: code.as_str(),
-                message,
-                retryable,
-            },
+            code: code.as_str(),
+            message,
+            retryable,
         }
     }
 
@@ -95,9 +89,12 @@ mod tests {
         );
 
         // シリアライズしてJSON構造を確認
+        // プロンプト要件に合わせて、トップレベルに code, message, retryable が配置される
         let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("INTERNAL_ERROR"));
-        assert!(json.contains("Test error"));
-        assert!(json.contains("retryable"));
+        assert!(json.contains("\"code\":\"INTERNAL_ERROR\""));
+        assert!(json.contains("\"message\":\"Test error\""));
+        assert!(json.contains("\"retryable\":false"));
+        // error ラッパーが存在しないことを確認
+        assert!(!json.contains("\"error\""));
     }
 }

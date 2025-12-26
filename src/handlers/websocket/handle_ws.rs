@@ -151,10 +151,13 @@ fn validate_origin(req: &Request, env: &Env) -> Option<Response> {
     };
 
     // デフォルトの許可されたOriginリスト
+    // プロンプト要件に合わせて localhost:5173 を追加
     let mut allowed_origins: Vec<String> = vec![
+        "http://localhost:5173".to_string(),
         "http://localhost:3000".to_string(),
         "http://localhost:8080".to_string(),
         "http://localhost:8787".to_string(),
+        "http://127.0.0.1:5173".to_string(),
         "http://127.0.0.1:3000".to_string(),
         "http://127.0.0.1:8080".to_string(),
         "http://127.0.0.1:8787".to_string(),
