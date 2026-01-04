@@ -11,7 +11,7 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
     }
 
     // 2. Origin検証
-    if let Some(resp) = validate_origin(&req) {
+    if let Some(resp) = validate_origin(&req, &env) {
         return Ok(resp);
     }
 
@@ -65,18 +65,37 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
 
     if status == 101 {
         worker::console_log!("[WebSocket] WebSocket upgrade successful!");
+        Ok(resp)
     } else {
         worker::console_log!(
             "[WebSocket] WARNING: Expected status 101 (Switching Protocols), got {}",
             status
         );
-        // エラーレスポンスの本文を取得してログに出力
-        if let Ok(body) = resp.text().await {
-            worker::console_log!("[WebSocket] Response body: {}", body);
-        }
-    }
+        // エラーレスポンスの本文を取得してログに出力（ボディを消費しないようにバイトとして読み込み、再構築）
+        let body_bytes = match resp.bytes().await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                worker::console_log!("[WebSocket] Failed to read response body: {:?}", e);
+                return Ok(resp);
+            }
+        };
 
-    Ok(resp)
+        // ログ用に文字列に変換（UTF-8ロスありでも可）
+        let body_str = String::from_utf8_lossy(&body_bytes);
+        worker::console_log!("[WebSocket] Response body: {}", body_str);
+
+        // 元のバイトでレスポンスを再構築し、ヘッダーとステータスを保持
+        let headers = resp.headers().clone();
+        let new_resp = Response::from_bytes(body_bytes)
+            .map_err(|e| {
+                worker::console_log!("[WebSocket] Failed to rebuild response: {:?}", e);
+                worker::Error::RustError("Failed to rebuild response".to_string())
+            })?
+            .with_status(status)
+            .with_headers(headers);
+
+        Ok(new_resp)
+    }
 }
 
 /// Upgradeヘッダの検証
@@ -146,7 +165,7 @@ fn validate_upgrade_headers(req: &Request) -> Option<Response> {
 
 /// Origin検証
 /// エラー時はSome(Response)を返し、成功時はNoneを返す
-fn validate_origin(req: &Request) -> Option<Response> {
+fn validate_origin(req: &Request, env: &Env) -> Option<Response> {
     let headers = req.headers();
     let Ok(origin) = headers.get("Origin") else {
         // Originヘッダの取得に失敗した場合、開発環境では許可
@@ -155,7 +174,7 @@ fn validate_origin(req: &Request) -> Option<Response> {
     };
 
     // デフォルトの許可されたOriginリスト
-    let allowed_origins: Vec<String> = vec![
+    let mut allowed_origins: Vec<String> = vec![
         "http://localhost:5173".to_string(),
         "http://localhost:3000".to_string(),
         "http://localhost:8080".to_string(),
@@ -171,6 +190,32 @@ fn validate_origin(req: &Request) -> Option<Response> {
         "null".to_string(),
     ];
 
+    // 環境変数から追加の許可されたOriginを読み込む
+    if let Ok(env_origins) = env.var("ALLOWED_ORIGINS") {
+        let env_origins_str = env_origins.to_string();
+        worker::console_log!(
+            "[WebSocket] Found ALLOWED_ORIGINS env var: {}",
+            env_origins_str
+        );
+
+        // カンマ区切りでパースし、トリムして空エントリを無視
+        let env_origins_list: Vec<String> = env_origins_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        // デフォルトリストとマージ（重複を削除）
+        for env_origin in env_origins_list {
+            if !allowed_origins.contains(&env_origin) {
+                allowed_origins.push(env_origin);
+            }
+        }
+        worker::console_log!("[WebSocket] Merged allowed origins: {:?}", allowed_origins);
+    } else {
+        worker::console_log!("[WebSocket] ALLOWED_ORIGINS env var not found, using defaults");
+    }
+
     if let Some(orig) = origin {
         let origin_str: String = orig.clone();
         worker::console_log!("[WebSocket] Checking origin: {}", origin_str);
@@ -179,12 +224,8 @@ fn validate_origin(req: &Request) -> Option<Response> {
         let is_allowed = if origin_str == "null" {
             true
         } else {
-            // 部分一致も許可（サブドメインなど）
-            let is_exact_match = allowed_origins.contains(&origin_str);
-            let is_partial_match = allowed_origins
-                .iter()
-                .any(|allowed| origin_str.starts_with(allowed) || allowed.starts_with(&origin_str));
-            is_exact_match || is_partial_match
+            // 完全一致のみ許可（セキュリティのため）
+            allowed_origins.contains(&origin_str)
         };
 
         if !is_allowed {

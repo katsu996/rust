@@ -34,7 +34,8 @@ pub async fn handle_admin_users(_req: Request, env: Env) -> Result<Response> {
         Err(e) => {
             worker::console_log!("[Admin] Failed to fetch from RoomManager DO: {:?}", e);
             let empty_response = json!({
-                "users": []
+                "users": [],
+                "totalUsers": 0
             });
             let mut response_obj = Response::from_json(&empty_response)?;
             response_obj

@@ -10,6 +10,8 @@ pub enum ErrorCode {
     InvalidOrigin,
     #[allow(dead_code)] // 将来の使用のために保持
     DurableObjectError,
+    Unauthorized,
+    Forbidden,
 }
 
 impl ErrorCode {
@@ -22,6 +24,8 @@ impl ErrorCode {
             Self::InvalidUpgradeHeader => "INVALID_UPGRADE_HEADER",
             Self::InvalidOrigin => "INVALID_ORIGIN",
             Self::DurableObjectError => "DURABLE_OBJECT_ERROR",
+            Self::Unauthorized => "UNAUTHORIZED",
+            Self::Forbidden => "FORBIDDEN",
         }
     }
 }
@@ -78,6 +82,8 @@ mod tests {
             ErrorCode::DurableObjectError.as_str(),
             "DURABLE_OBJECT_ERROR"
         );
+        assert_eq!(ErrorCode::Unauthorized.as_str(), "UNAUTHORIZED");
+        assert_eq!(ErrorCode::Forbidden.as_str(), "FORBIDDEN");
     }
 
     #[test]

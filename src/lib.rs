@@ -38,10 +38,40 @@ async fn main_router(req: Request, env: Env, _ctx: Context) -> Result<Response> 
         (Method::Post, "/api/rooms/leave-room") => {
             handlers::rooms::handle_leave_room(req, env).await?
         }
-        (Method::Get, "/api/admin/rooms") => handlers::admin::handle_admin_rooms(req, env).await?,
-        (Method::Get, "/api/admin/stats") => handlers::admin::handle_admin_stats(req, env).await?,
-        (Method::Get, "/api/admin/users") => handlers::admin::handle_admin_users(req, env).await?,
+        (Method::Get, "/api/admin/rooms") => {
+            // 認証チェック
+            if let Some(auth_error_response) = utils::authenticate_admin_request(&req, &env)? {
+                return Ok(auth_error_response);
+            }
+            handlers::admin::handle_admin_rooms(req, env).await?
+        }
+        (Method::Get, "/api/admin/stats") => {
+            // 認証チェック
+            if let Some(auth_error_response) = utils::authenticate_admin_request(&req, &env)? {
+                return Ok(auth_error_response);
+            }
+            handlers::admin::handle_admin_stats(req, env).await?
+        }
+        (Method::Get, "/api/admin/users") => {
+            // 認証チェック
+            if let Some(auth_error_response) = utils::authenticate_admin_request(&req, &env)? {
+                return Ok(auth_error_response);
+            }
+            handlers::admin::handle_admin_users(req, env).await?
+        }
+        (Method::Get, "/api/admin/dev-key") => {
+            // 開発環境用のAPIキー取得エンドポイント（認証不要）
+            handlers::admin::handle_admin_dev_key(req, env).await?
+        }
+        (Method::Get, "/admin") => {
+            // 管理画面HTML（環境変数を埋め込む、開発環境のみ）
+            handlers::admin::handle_admin_html(req, env).await?
+        }
         (Method::Delete, path) if path.starts_with("/api/admin/rooms/") => {
+            // 認証チェック
+            if let Some(auth_error_response) = utils::authenticate_admin_request(&req, &env)? {
+                return Ok(auth_error_response);
+            }
             handlers::admin::handle_admin_delete_room(req, env).await?
         }
         (Method::Get, "/math/add") => handlers::math::add::handle(&url)?,

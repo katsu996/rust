@@ -606,6 +606,7 @@
             updateTestStatus(testId, 'running', '実行中...');
             const btn = document.getElementById('test2Btn');
             btn.disabled = true;
+            let ws = null;
 
             try {
                 log('=== テストケース2: プレイヤー名の正しい設定 ===', 'info');
@@ -642,7 +643,7 @@
                 // 2. WebSocket接続を確立
                 log('WebSocket接続を確立中...', 'info');
                 const wsUrl = getWsUrl();
-                const ws = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
+                ws = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
 
                 await new Promise((resolve, reject) => {
                     ws.onopen = () => {
@@ -712,6 +713,9 @@
                 updateTestStatus(testId, 'failed', '失敗');
                 addTestResult(testId, 'プレイヤー名の正しい設定', false, error.message);
             } finally {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
                 btn.disabled = false;
             }
         }
@@ -721,6 +725,7 @@
             updateTestStatus(testId, 'running', '実行中...');
             const btn = document.getElementById('test3Btn');
             btn.disabled = true;
+            let ws1 = null, ws2 = null;
 
             try {
                 log('=== テストケース3: 正常なマッチングフロー ===', 'info');
@@ -755,7 +760,7 @@
                 // 2. 1人目のプレイヤーがWebSocket接続
                 log('1人目のプレイヤーがWebSocket接続中...', 'info');
                 const wsUrl = getWsUrl();
-                const ws1 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
+                ws1 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
 
                 await new Promise((resolve, reject) => {
                     ws1.onopen = resolve;
@@ -816,7 +821,7 @@
 
                 // 4. 2人目のプレイヤーがWebSocket接続
                 log('2人目のプレイヤーがWebSocket接続中...', 'info');
-                const ws2 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
+                ws2 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
 
                 await new Promise((resolve, reject) => {
                     ws2.onopen = resolve;
@@ -878,14 +883,25 @@
                     throw new Error(`プレイヤー数が期待値と異なります（期待値: 2, 実際: ${room.playerCount}）`);
                 }
 
-                ws1.close();
-                ws2.close();
-
             } catch (error) {
                 log(`テストエラー: ${error.message}`, 'error');
                 updateTestStatus(testId, 'failed', '失敗');
                 addTestResult(testId, '正常なマッチングフロー', false, error.message);
             } finally {
+                if (ws1 && ws1.readyState !== WebSocket.CLOSED) {
+                    try {
+                        ws1.close();
+                    } catch (e) {
+                        // エラーを無視して続行
+                    }
+                }
+                if (ws2 && ws2.readyState !== WebSocket.CLOSED) {
+                    try {
+                        ws2.close();
+                    } catch (e) {
+                        // エラーを無視して続行
+                    }
+                }
                 btn.disabled = false;
             }
         }
@@ -991,6 +1007,9 @@
             updateTestStatus(testId, 'running', '実行中...');
             const btn = document.getElementById('test5Btn');
             btn.disabled = true;
+            let ws = null;
+            let connectionTimeout = null;
+            let messageTimeout = null;
 
             try {
                 log('=== テストケース5: 無効なroomIdでのWebSocket接続 ===', 'info');
@@ -1000,13 +1019,13 @@
                 
                 log(`無効なroomId (${invalidRoomId}) でWebSocket接続を試行中...`, 'info');
                 
-                const ws = new WebSocket(`${wsUrl}/ws?roomId=${invalidRoomId}`);
+                ws = new WebSocket(`${wsUrl}/ws?roomId=${invalidRoomId}`);
                 
                 // 接続が確立されるかどうかを確認
                 await new Promise((resolve, reject) => {
                     ws.onopen = resolve;
                     ws.onerror = () => reject(new Error('WebSocket接続エラー'));
-                    setTimeout(() => reject(new Error('WebSocket接続タイムアウト')), 10000);
+                    connectionTimeout = setTimeout(() => reject(new Error('WebSocket接続タイムアウト')), 10000);
                 });
 
                 log('WebSocket接続が確立されました（無効なroomIdでも接続は確立されます）', 'info');
@@ -1034,7 +1053,7 @@
                             resolve(message);
                         }
                     };
-                    setTimeout(() => reject(new Error('メッセージのタイムアウト')), 10000);
+                    messageTimeout = setTimeout(() => reject(new Error('メッセージのタイムアウト')), 10000);
                 });
 
                 ws.close();
@@ -1074,6 +1093,32 @@
                     addTestResult(testId, '無効なroomIdでのWebSocket接続', false, error.message);
                 }
             } finally {
+                // タイムアウトタイマーをクリア
+                if (connectionTimeout) {
+                    clearTimeout(connectionTimeout);
+                }
+                if (messageTimeout) {
+                    clearTimeout(messageTimeout);
+                }
+                
+                // WebSocketをクリーンアップ
+                if (ws) {
+                    // イベントハンドラをリセット
+                    ws.onopen = null;
+                    ws.onerror = null;
+                    ws.onmessage = null;
+                    ws.onclose = null;
+                    
+                    // WebSocketが開いているか接続中の場合は閉じる
+                    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                        try {
+                            ws.close();
+                        } catch (e) {
+                            // エラーを無視して続行
+                        }
+                    }
+                }
+                
                 btn.disabled = false;
             }
         }
@@ -1083,6 +1128,7 @@
             updateTestStatus(testId, 'running', '実行中...');
             const btn = document.getElementById('test6Btn');
             btn.disabled = true;
+            let ws = null;
 
             try {
                 log('=== テストケース6: join_roomメッセージを送信せずに他のメッセージを送信 ===', 'info');
@@ -1114,7 +1160,7 @@
                 // 2. WebSocket接続を確立
                 log('WebSocket接続を確立中...', 'info');
                 const wsUrl = getWsUrl();
-                const ws = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
+                ws = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
 
                 await new Promise((resolve, reject) => {
                     ws.onopen = resolve;
@@ -1145,7 +1191,6 @@
                     setTimeout(() => reject(new Error('エラーメッセージのタイムアウト')), 5000);
                 });
 
-                ws.close();
                 log('エラーメッセージを受信しました', 'success');
 
                 // 5. エラーメッセージの内容を確認
@@ -1170,6 +1215,24 @@
                     addTestResult(testId, 'join_roomメッセージを送信せずに他のメッセージを送信', false, error.message);
                 }
             } finally {
+                // WebSocketをクリーンアップ
+                if (ws) {
+                    // イベントハンドラをリセット
+                    ws.onopen = null;
+                    ws.onerror = null;
+                    ws.onmessage = null;
+                    ws.onclose = null;
+                    
+                    // WebSocketが開いているか接続中の場合は閉じる
+                    if (ws.readyState !== WebSocket.CLOSED) {
+                        try {
+                            ws.close();
+                        } catch (e) {
+                            // エラーを無視して続行
+                        }
+                    }
+                }
+                
                 btn.disabled = false;
             }
         }
@@ -1179,6 +1242,8 @@
             updateTestStatus(testId, 'running', '実行中...');
             const btn = document.getElementById('test7Btn');
             btn.disabled = true;
+            let ws1 = null;
+            let ws2 = null;
 
             try {
                 log('=== テストケース7: WebSocket接続の切断・再接続 ===', 'info');
@@ -1211,7 +1276,7 @@
                 // 2. 最初のWebSocket接続を確立
                 log('最初のWebSocket接続を確立中...', 'info');
                 const wsUrl = getWsUrl();
-                let ws1 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
+                ws1 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
 
                 await new Promise((resolve, reject) => {
                     ws1.onopen = resolve;
@@ -1266,7 +1331,7 @@
 
                 // 7. 再接続
                 log('WebSocket接続を再接続中...', 'info');
-                let ws2 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
+                ws2 = new WebSocket(`${wsUrl}/ws?roomId=${roomId}`);
 
                 await new Promise((resolve, reject) => {
                     ws2.onopen = resolve;
@@ -1332,6 +1397,25 @@
                 updateTestStatus(testId, 'failed', '失敗');
                 addTestResult(testId, 'WebSocket接続の切断・再接続', false, error.message);
             } finally {
+                // WebSocket接続をクリーンアップ
+                if (ws1) {
+                    if (ws1.readyState === WebSocket.OPEN || ws1.readyState === WebSocket.CONNECTING) {
+                        try {
+                            ws1.close();
+                        } catch (e) {
+                            // エラーを無視して続行
+                        }
+                    }
+                }
+                if (ws2) {
+                    if (ws2.readyState === WebSocket.OPEN || ws2.readyState === WebSocket.CONNECTING) {
+                        try {
+                            ws2.close();
+                        } catch (e) {
+                            // エラーを無視して続行
+                        }
+                    }
+                }
                 btn.disabled = false;
             }
         }

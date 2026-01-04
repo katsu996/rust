@@ -398,7 +398,7 @@ export class GameSession {
         case "get_room_state":
           await this.handleGetRoomState(playerId, message);
           break;
-        default:
+        default: {
           console.error(`[GameSession] Unknown action: ${message.action}`);
           const errorMsg = {
             type: "error" as const,
@@ -409,6 +409,7 @@ export class GameSession {
           };
           console.log(`[GameSession] Sending error message (unknown action):`, JSON.stringify(errorMsg, null, 2));
           this.sendTo(playerId, errorMsg);
+        }
       }
     } catch (error) {
       console.error(`[GameSession] Exception in handleMessage for action ${message.action}:`, error);

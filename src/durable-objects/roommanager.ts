@@ -203,11 +203,95 @@ export class RoomManager {
   private async handleCustomRoomCreate(request: Request): Promise<Response> {
     await this.restoreState();
 
-    const body = await request.json<{
+    let body: {
       playerId: string;
       customRoomSettings: RoomSettings;
-    }>();
+    };
+    try {
+      body = await request.json<{
+        playerId: string;
+        customRoomSettings: RoomSettings;
+      }>();
+    } catch (error) {
+      console.error(`[RoomManager] Failed to parse request body:`, error);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "Invalid JSON in request body",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { playerId, customRoomSettings } = body;
+
+    // 入力検証
+    if (!playerId || typeof playerId !== "string" || playerId.trim().length === 0) {
+      console.error(`[RoomManager] playerId is missing or invalid in request body`);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "playerId is required and must be a non-empty string",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (
+      !customRoomSettings ||
+      typeof customRoomSettings !== "object" ||
+      Array.isArray(customRoomSettings)
+    ) {
+      console.error(`[RoomManager] customRoomSettings is missing or invalid in request body`);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "customRoomSettings is required and must be an object",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // customRoomSettingsの各フィールドを検証
+    if (
+      typeof customRoomSettings.maxWins !== "number" ||
+      typeof customRoomSettings.maxFalseStarts !== "number" ||
+      typeof customRoomSettings.allowFalseStarts !== "boolean" ||
+      typeof customRoomSettings.maxPlayers !== "number"
+    ) {
+      console.error(
+        `[RoomManager] customRoomSettings has invalid fields:`,
+        customRoomSettings
+      );
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message:
+              "customRoomSettings must contain valid maxWins (number), maxFalseStarts (number), allowFalseStarts (boolean), and maxPlayers (number)",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // 新規ルームIDとroomCodeを生成
     const roomId = this.generateRoomId();
@@ -494,6 +578,21 @@ export class RoomManager {
       roomId: string;
     }>();
     const { playerId, roomId } = body;
+
+    if (!playerId || !roomId) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "playerId and roomId are required",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     await this.handleRoomLeave(playerId, roomId);
 

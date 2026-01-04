@@ -153,8 +153,8 @@
 
 **残りの作業**:
 
-- ✅ デプロイ手順の詳細追加（docs/DEPLOYMENT.md）
-- ✅ トラブルシューティングガイドの追加（docs/TROUBLESHOOTING.md）
+- ✅ デプロイ手順の詳細追加（docs/DEPLOYMENT.md） - 完了済み
+- ✅ トラブルシューティングガイドの追加（docs/TROUBLESHOOTING.md） - 完了済み
 
 ---
 
@@ -198,12 +198,12 @@
    - 二重送信の防止
    - 不正なメッセージの検証
 
-2. **ドキュメントと設定** ✅ 一部完了
+2. **ドキュメントと設定** ✅ 完了
    - ✅ API仕様書の更新（README.md）
    - ✅ テストガイドの作成（docs/TESTING.md）
    - ✅ テスト環境のセットアップ（Vitest + Playwright）
-   - [ ] デプロイ手順の詳細追加
-   - [ ] トラブルシューティングガイドの追加
+   - ✅ デプロイ手順の詳細追加（docs/DEPLOYMENT.md） - 完了済み
+   - ✅ トラブルシューティングガイドの追加（docs/TROUBLESHOOTING.md） - 完了済み
 
 ---
 
