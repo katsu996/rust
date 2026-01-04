@@ -35,6 +35,15 @@ async fn main_router(req: Request, env: Env, _ctx: Context) -> Result<Response> 
         (Method::Post, "/api/rooms/join-room") => {
             handlers::rooms::handle_join_room(req, env).await?
         }
+        (Method::Post, "/api/rooms/leave-room") => {
+            handlers::rooms::handle_leave_room(req, env).await?
+        }
+        (Method::Get, "/api/admin/rooms") => handlers::admin::handle_admin_rooms(req, env).await?,
+        (Method::Get, "/api/admin/stats") => handlers::admin::handle_admin_stats(req, env).await?,
+        (Method::Get, "/api/admin/users") => handlers::admin::handle_admin_users(req, env).await?,
+        (Method::Delete, path) if path.starts_with("/api/admin/rooms/") => {
+            handlers::admin::handle_admin_delete_room(req, env).await?
+        }
         (Method::Get, "/math/add") => handlers::math::add::handle(&url)?,
         (Method::Get, "/math/sub") => handlers::math::sub::handle(&url)?,
         (Method::Get, "/benchmark/add_array") => handlers::benchmark::add_array::handle(&url)?,
@@ -49,5 +58,19 @@ async fn main_router(req: Request, env: Env, _ctx: Context) -> Result<Response> 
 
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, ctx: Context) -> Result<Response> {
-    main_router(req, env, ctx).await
+    match main_router(req, env, ctx).await {
+        Ok(response) => Ok(response),
+        Err(e) => {
+            // エラーが発生した場合でもCORSヘッダーを追加
+            worker::console_log!("Error in main_router: {:?}", e);
+            let error_response = utils::ErrorResponse::new(
+                utils::ErrorCode::InternalError,
+                format!("Internal server error: {e}"),
+                Some(false),
+            );
+            let response = error_response.to_response(500)?;
+            // CORSヘッダーを追加
+            utils::add_cors_headers(response)
+        }
+    }
 }

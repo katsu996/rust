@@ -13,7 +13,8 @@ export type ClientMessageAction =
   | "false_start"
   | "ready_toggle"
   | "rematch_request"
-  | "rematch_response";
+  | "rematch_response"
+  | "get_room_state";
 
 // ServerMessage.type の型
 export type ServerMessageType =
@@ -34,6 +35,7 @@ export type ServerMessageType =
   | "countdown_start"
   | "rematch_request"
   | "rematch_response"
+  | "room_state"
   | "error";
 
 // ClientMessage の型定義
@@ -76,6 +78,8 @@ export interface ServerMessage {
   countdown?: number;
   gameOver?: boolean;
   gameWinnerId?: string;
+  settings?: RoomSettings;
+  gameState?: GameState;
   error?: {
     code: string;
     message: string;
@@ -119,4 +123,6 @@ export interface RoomInfo {
   matchType: "quick" | "custom";
   playerIds: Set<string>;
   settings: RoomSettings;
+  playerJoinedAt: Map<string, number>; // プレイヤーが参加した時刻（Unix timestamp）
+  playerConnectedAt: Map<string, number>; // プレイヤーがWebSocket接続を確立した時刻
 }

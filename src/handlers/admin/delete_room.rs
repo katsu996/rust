@@ -1,23 +1,25 @@
+use serde_json::json;
 use worker::{Env, Request, Response, Result};
 
-/// Quick match ルームの検索・作成・参加
-/// POST /api/rooms/quick-match
-pub async fn handle_quick_match(mut req: Request, env: Env) -> Result<Response> {
-    // リクエストボディを取得
-    let body = req.json::<serde_json::Value>().await.map_err(|e| {
-        worker::console_log!("[QuickMatch] Failed to parse request body: {:?}", e);
-        worker::Error::RustError("Invalid JSON".to_string())
-    })?;
+/// 管理画面用: ルームを削除
+/// DELETE /api/admin/rooms/{roomId}
+pub async fn handle_admin_delete_room(req: Request, env: Env) -> Result<Response> {
+    worker::console_log!("[Admin] Starting handle_admin_delete_room");
 
-    // デバッグ: リクエストボディの内容をログに出力
-    worker::console_log!("[QuickMatch] Request body: {:?}", body);
+    // URLからroomIdを取得
+    let url = req.url()?;
+    let path = url.path();
 
-    // playerIdの存在を確認
-    if let Some(player_id) = body.get("playerId") {
-        worker::console_log!("[QuickMatch] playerId found: {:?}", player_id);
-    } else {
-        worker::console_log!("[QuickMatch] WARNING: playerId not found in request body");
+    // /api/admin/rooms/{roomId} の形式からroomIdを抽出
+    let room_id = path
+        .strip_prefix("/api/admin/rooms/")
+        .ok_or_else(|| worker::Error::RustError("Invalid path format".to_string()))?;
+
+    if room_id.is_empty() {
+        return Ok(Response::ok("Room ID is required")?.with_status(400));
     }
+
+    worker::console_log!("[Admin] Deleting room: {}", room_id);
 
     // RoomManager DOを取得
     let namespace = env.durable_object("ROOM_MANAGER").map_err(|e| {
@@ -37,18 +39,17 @@ pub async fn handle_quick_match(mut req: Request, env: Env) -> Result<Response> 
     })?;
 
     // RoomManager DOにリクエストを転送
-    // RoomManager DOのfetchメソッドはurl.pathnameを見るため、/quick-matchを指定
     let do_request = Request::new_with_init(
-        "http://room-manager/quick-match",
+        "http://room-manager/delete-room",
         worker::RequestInit::new()
-            .with_method(worker::Method::Post)
+            .with_method(worker::Method::Delete)
             .with_headers({
                 let headers = worker::Headers::new();
                 headers.set("Content-Type", "application/json")?;
                 headers
             })
             .with_body(Some(
-                serde_json::to_string(&body)
+                serde_json::to_string(&json!({ "roomId": room_id }))
                     .map_err(|e| {
                         worker::console_log!("Failed to serialize request body: {:?}", e);
                         worker::Error::RustError(format!("JSON serialization failed: {e}"))

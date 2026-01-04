@@ -3,6 +3,7 @@ use utoipa::ToSchema;
 
 /// ベンチマーク結果のレスポンス
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct BenchmarkResult {
     /// 配列の要素数
     pub n: u64,

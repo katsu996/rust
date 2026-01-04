@@ -1,23 +1,13 @@
 use worker::{Env, Request, Response, Result};
 
-/// Quick match ルームの検索・作成・参加
-/// POST /api/rooms/quick-match
-pub async fn handle_quick_match(mut req: Request, env: Env) -> Result<Response> {
+/// ルームから退出
+/// POST /api/rooms/leave-room
+pub async fn handle_leave_room(mut req: Request, env: Env) -> Result<Response> {
     // リクエストボディを取得
     let body = req.json::<serde_json::Value>().await.map_err(|e| {
-        worker::console_log!("[QuickMatch] Failed to parse request body: {:?}", e);
+        worker::console_log!("Failed to parse request body: {:?}", e);
         worker::Error::RustError("Invalid JSON".to_string())
     })?;
-
-    // デバッグ: リクエストボディの内容をログに出力
-    worker::console_log!("[QuickMatch] Request body: {:?}", body);
-
-    // playerIdの存在を確認
-    if let Some(player_id) = body.get("playerId") {
-        worker::console_log!("[QuickMatch] playerId found: {:?}", player_id);
-    } else {
-        worker::console_log!("[QuickMatch] WARNING: playerId not found in request body");
-    }
 
     // RoomManager DOを取得
     let namespace = env.durable_object("ROOM_MANAGER").map_err(|e| {
@@ -37,9 +27,9 @@ pub async fn handle_quick_match(mut req: Request, env: Env) -> Result<Response> 
     })?;
 
     // RoomManager DOにリクエストを転送
-    // RoomManager DOのfetchメソッドはurl.pathnameを見るため、/quick-matchを指定
+    // RoomManager DOのfetchメソッドはurl.pathnameを見るため、/leave-roomを指定
     let do_request = Request::new_with_init(
-        "http://room-manager/quick-match",
+        "http://room-manager/leave-room",
         worker::RequestInit::new()
             .with_method(worker::Method::Post)
             .with_headers({

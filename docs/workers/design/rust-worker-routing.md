@@ -1,10 +1,12 @@
-## Rust Worker ルーティング設計
+# Rust Worker ルーティング設計
 
-### 1. 目的
+## 1. 目的
+
 - 1つの Worker 内で、**WebSocketエンドポイント**と将来の **HTTP/RESTエンドポイント** を適切に振り分ける。
 - WebSocket接続は **GameSession DO / RoomManager DO** にルーティングする。
 
-### 2. エンドポイント分類
+## 2. エンドポイント分類
+
 - `/ws`:
   - WebSocket用。`handle_ws` に委譲（`rust-worker-websocket-handling.md` 参照）。
 - `/health`:
@@ -12,13 +14,14 @@
 - `/api/*`（将来拡張用）:
   - 非リアルタイムREST API向けのプレースホルダ。
 
-### 3. ルーティング関数の責務
+## 3. ルーティング関数の責務
+
 - 受け取った `Request` の
   - パス
   - メソッド
 を見て、対応するハンドラ関数にディスパッチする。
 
-### 4. 疑似コードイメージ
+## 4. 疑似コードイメージ
 
 ```rust
 pub async fn main_router(req: Request, env: Env, _ctx: worker::Context) -> Result<Response> {
@@ -34,7 +37,8 @@ pub async fn main_router(req: Request, env: Env, _ctx: worker::Context) -> Resul
 }
 ```
 
-### 5. GameSession / RoomManager DO へのルーティング
+## 5. GameSession / RoomManager DO へのルーティング
+
 - `GameSession`:
   - 主に `/ws` の中で DO に委譲される。
   - `roomId` ベースで `id_from_name(room_id)` を計算。
@@ -42,8 +46,7 @@ pub async fn main_router(req: Request, env: Env, _ctx: worker::Context) -> Resul
   - ルーム作成/検索/マッチング用に `/api/rooms/*` で呼び出し。
   - `ROOM_MANAGER.id_from_name("global")` のように単一インスタンスでもよい。
 
-### 6. エラー時ルーティング
+## 6. エラー時ルーティング
+
 - 想定外のパス/メソッドは `404 Not Found`。
 - ハンドラ内部エラーは、ここではラップせず各ハンドラで `5xx` を返す方針。
-
-

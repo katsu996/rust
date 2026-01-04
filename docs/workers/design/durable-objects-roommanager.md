@@ -1,6 +1,6 @@
-## RoomManager Durable Object 設計
+# RoomManager Durable Object 設計
 
-### 1. 目的
+## 1. 目的
 - ルーム単位ではなく、**マッチング/ルーム一覧**を管理する集中コンポーネント。
 - 主な責務:
   - クイックマッチ用ルームの検索・作成
@@ -29,7 +29,7 @@ interface RoomManagerState {
 }
 ```
 
-### 3. 公開メソッド
+## 3. 公開メソッド
 - `handleQuickMatchJoin(playerId): Promise<{ roomId: string }>`
   - 空きのある quick match ルームを探し、無ければ新規作成。
 - `handleCustomRoomCreate(playerId, settings): Promise<{ roomId: string; roomCode: string }>`
@@ -48,7 +48,7 @@ interface RoomManagerState {
     2. クライアント: `roomId` を保持したまま `/ws?roomId=...` に接続
     3. GameSession: `roomId` に紐づく DO でゲームロジックを実行
 
-### 5. Hibernation/ストレージ
+## 5. Hibernation/ストレージ
 - `RoomManagerState` 全体を定期的に `state.storage.put("rooms", ...)` で保存。
 - 長期間使用されていないルーム（最終更新時刻から一定時間経過）は
   - ガベージコレクタ的な処理で削除候補にする。

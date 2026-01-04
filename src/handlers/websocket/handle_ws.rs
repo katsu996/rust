@@ -11,7 +11,7 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
     }
 
     // 2. Origin検証
-    if let Some(resp) = validate_origin(&req, &env) {
+    if let Some(resp) = validate_origin(&req) {
         return Ok(resp);
     }
 
@@ -30,6 +30,11 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
     };
 
     // 4. GameSession DOへの接続
+    worker::console_log!(
+        "[WebSocket] Connecting to GameSession DO for roomId: {}",
+        room_id
+    );
+
     let namespace = env.durable_object("GAME_SESSION").map_err(|e| {
         worker::console_log!("[WebSocket] Failed to get GAME_SESSION namespace: {:?}", e);
         worker::Error::RustError("Failed to get Durable Object namespace".to_string())
@@ -40,23 +45,35 @@ pub async fn handle_ws(req: Request, env: Env) -> Result<Response> {
         worker::Error::RustError("Failed to get Durable Object ID".to_string())
     })?;
 
+    worker::console_log!("[WebSocket] Got DO ID, getting stub...");
+
     // DO 側の fetch が WebSocket Upgrade を処理する
     let stub = id.get_stub().map_err(|e| {
         worker::console_log!("[WebSocket] Failed to get DO stub: {:?}", e);
         worker::Error::RustError("Failed to get Durable Object stub".to_string())
     })?;
 
-    let resp = stub.fetch_with_request(req).await.map_err(|e| {
+    worker::console_log!("[WebSocket] Got stub, forwarding request to DO...");
+
+    let mut resp = stub.fetch_with_request(req).await.map_err(|e| {
         worker::console_log!("[WebSocket] Failed to fetch from DO: {:?}", e);
         worker::Error::RustError("Failed to connect to Durable Object".to_string())
     })?;
 
     let status = resp.status_code();
-    if status != 101 {
+    worker::console_log!("[WebSocket] DO response status: {}", status);
+
+    if status == 101 {
+        worker::console_log!("[WebSocket] WebSocket upgrade successful!");
+    } else {
         worker::console_log!(
             "[WebSocket] WARNING: Expected status 101 (Switching Protocols), got {}",
             status
         );
+        // エラーレスポンスの本文を取得してログに出力
+        if let Ok(body) = resp.text().await {
+            worker::console_log!("[WebSocket] Response body: {}", body);
+        }
     }
 
     Ok(resp)
@@ -129,51 +146,53 @@ fn validate_upgrade_headers(req: &Request) -> Option<Response> {
 
 /// Origin検証
 /// エラー時はSome(Response)を返し、成功時はNoneを返す
-fn validate_origin(req: &Request, env: &Env) -> Option<Response> {
+fn validate_origin(req: &Request) -> Option<Response> {
     let headers = req.headers();
     let Ok(origin) = headers.get("Origin") else {
         // Originヘッダの取得に失敗した場合、開発環境では許可
+        worker::console_log!("[WebSocket] No Origin header, allowing connection");
         return None;
     };
 
     // デフォルトの許可されたOriginリスト
-    // プロンプト要件に合わせて localhost:5173 を追加
-    let mut allowed_origins: Vec<String> = vec![
+    let allowed_origins: Vec<String> = vec![
         "http://localhost:5173".to_string(),
         "http://localhost:3000".to_string(),
         "http://localhost:8080".to_string(),
+        "http://localhost:8081".to_string(),
         "http://localhost:8787".to_string(),
         "http://127.0.0.1:5173".to_string(),
         "http://127.0.0.1:3000".to_string(),
         "http://127.0.0.1:8080".to_string(),
+        "http://127.0.0.1:8081".to_string(),
         "http://127.0.0.1:8787".to_string(),
+        "http://rust.katsu996.workers.dev".to_string(),
         "https://rust.katsu996.workers.dev".to_string(),
         "null".to_string(),
     ];
 
-    // 環境変数から追加の許可されたOriginを取得
-    if let Ok(allowed_origins_env) = env.var("ALLOWED_ORIGINS") {
-        let origins_str = allowed_origins_env.to_string();
-        let additional_origins: Vec<String> = origins_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        allowed_origins.extend(additional_origins);
-    }
-
     if let Some(orig) = origin {
         let origin_str: String = orig.clone();
+        worker::console_log!("[WebSocket] Checking origin: {}", origin_str);
 
         // "null" origin (file://プロトコル) も許可
         let is_allowed = if origin_str == "null" {
             true
         } else {
-            allowed_origins.contains(&origin_str)
+            // 部分一致も許可（サブドメインなど）
+            let is_exact_match = allowed_origins.contains(&origin_str);
+            let is_partial_match = allowed_origins
+                .iter()
+                .any(|allowed| origin_str.starts_with(allowed) || allowed.starts_with(&origin_str));
+            is_exact_match || is_partial_match
         };
 
         if !is_allowed {
-            worker::console_log!("[WebSocket] Invalid origin: {}", origin_str);
+            worker::console_log!(
+                "[WebSocket] Invalid origin: {} (allowed: {:?})",
+                origin_str,
+                allowed_origins
+            );
             let error = ErrorResponse::new(
                 ErrorCode::InvalidOrigin,
                 format!(
@@ -183,6 +202,9 @@ fn validate_origin(req: &Request, env: &Env) -> Option<Response> {
             );
             return Some(safe_error_response(&error, 403));
         }
+        worker::console_log!("[WebSocket] Origin allowed: {}", origin_str);
+    } else {
+        worker::console_log!("[WebSocket] No Origin header value, allowing connection");
     }
 
     None

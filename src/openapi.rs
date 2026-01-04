@@ -5,9 +5,10 @@
 use utoipa::OpenApi;
 
 use crate::models::{
+    AdminDeleteRoomResponse, AdminRoomInfo, AdminRoomsResponse, AdminStatsResponse,
     BenchmarkResult, CalculationResult, CreateRoomRequest, CreateRoomResponse, ErrorInfo,
-    JoinRoomRequest, JoinRoomResponse, QuickMatchRequest, QuickMatchResponse, RoomErrorResponse,
-    RoomSettings, WelcomeResponse,
+    JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, QuickMatchRequest,
+    QuickMatchResponse, RoomErrorResponse, RoomSettings, WelcomeResponse,
 };
 
 /// `OpenAPI` ドキュメント定義
@@ -28,7 +29,11 @@ use crate::models::{
         crate::openapi::quick_match,
         crate::openapi::create_room,
         crate::openapi::join_room,
-        crate::openapi::websocket
+        crate::openapi::leave_room,
+        crate::openapi::websocket,
+        crate::openapi::admin_rooms,
+        crate::openapi::admin_stats,
+        crate::openapi::admin_delete_room
     ),
     components(schemas(
         WelcomeResponse,
@@ -41,15 +46,22 @@ use crate::models::{
         CreateRoomResponse,
         JoinRoomRequest,
         JoinRoomResponse,
+        LeaveRoomRequest,
+        LeaveRoomResponse,
         ErrorInfo,
-        RoomErrorResponse
+        RoomErrorResponse,
+        AdminRoomInfo,
+        AdminRoomsResponse,
+        AdminStatsResponse,
+        AdminDeleteRoomResponse
     )),
     tags(
         (name = "General", description = "一般エンドポイント"),
         (name = "Math", description = "計算エンドポイント"),
         (name = "Benchmark", description = "ベンチマークエンドポイント"),
         (name = "Rooms", description = "ルーム管理エンドポイント（Quick Match、カスタムルーム作成・参加）"),
-        (name = "WebSocket", description = "WebSocket接続（リアルタイム通信）")
+        (name = "WebSocket", description = "WebSocket接続（リアルタイム通信）"),
+        (name = "Admin", description = "管理画面エンドポイント（ルーム一覧、統計情報）")
     )
 )]
 pub struct ApiDoc;
@@ -174,6 +186,24 @@ fn create_room() {}
 )]
 fn join_room() {}
 
+/// ルーム退出
+///
+/// ルームから退出します。WebSocket接続の有無に関わらず、確実にルームから退出できます。
+/// ルームが空になった場合、自動的にルームが削除されます。
+#[allow(dead_code)]
+#[utoipa::path(
+    post,
+    path = "/api/rooms/leave-room",
+    tag = "Rooms",
+    request_body = LeaveRoomRequest,
+    responses(
+        (status = 200, description = "退出成功", body = LeaveRoomResponse),
+        (status = 404, description = "ルームが見つからない", body = RoomErrorResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn leave_room() {}
+
 /// WebSocket接続
 ///
 /// WebSocket接続を確立し、ゲームセッションに参加します。
@@ -197,6 +227,58 @@ fn join_room() {}
     )
 )]
 fn websocket() {}
+
+/// 管理画面: ルーム一覧取得
+///
+/// 全ルームの一覧と詳細情報を取得します。
+/// 各ルームのゲーム状態、プレイヤー情報、設定などを含みます。
+#[allow(dead_code)]
+#[utoipa::path(
+    get,
+    path = "/api/admin/rooms",
+    tag = "Admin",
+    responses(
+        (status = 200, description = "ルーム一覧と詳細情報", body = AdminRoomsResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn admin_rooms() {}
+
+/// 管理画面: 統計情報取得
+///
+/// 全体の統計情報を取得します。
+/// 総ルーム数、アクティブルーム数、オンラインユーザー数などを含みます。
+#[allow(dead_code)]
+#[utoipa::path(
+    get,
+    path = "/api/admin/stats",
+    tag = "Admin",
+    responses(
+        (status = 200, description = "統計情報", body = AdminStatsResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn admin_stats() {}
+
+/// 管理画面: ルーム削除
+///
+/// 指定されたルームを強制的に削除します。
+/// ルーム内のすべてのプレイヤーが削除され、ルームが完全に削除されます。
+#[allow(dead_code)]
+#[utoipa::path(
+    delete,
+    path = "/api/admin/rooms/{roomId}",
+    tag = "Admin",
+    params(
+        ("roomId" = String, Path, description = "削除するルームID")
+    ),
+    responses(
+        (status = 200, description = "ルーム削除成功", body = AdminDeleteRoomResponse),
+        (status = 404, description = "ルームが見つからない", body = RoomErrorResponse),
+        (status = 500, description = "サーバーエラー", body = RoomErrorResponse)
+    )
+)]
+fn admin_delete_room() {}
 
 /// `OpenAPI` スキーマを JSON 文字列として取得
 pub fn get_openapi_json() -> String {

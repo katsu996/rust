@@ -1,8 +1,9 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 /// ルーム設定
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct RoomSettings {
     /// 最大勝利数
     #[schema(example = 3)]
@@ -19,7 +20,8 @@ pub struct RoomSettings {
 }
 
 /// Quick Match リクエスト
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct QuickMatchRequest {
     /// プレイヤーID
     #[schema(example = "player-123")]
@@ -30,14 +32,16 @@ pub struct QuickMatchRequest {
 
 /// Quick Match レスポンス
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct QuickMatchResponse {
-    /// ルームID
-    #[schema(example = "room-1234567890-abc123")]
+    /// ルームID（UUID）
+    #[schema(example = "550e8400-e29b-41d4-a716-446655440000")]
     pub room_id: String,
 }
 
 /// カスタムルーム作成リクエスト
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateRoomRequest {
     /// プレイヤーID
     #[schema(example = "player-123")]
@@ -48,9 +52,10 @@ pub struct CreateRoomRequest {
 
 /// カスタムルーム作成レスポンス
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateRoomResponse {
-    /// ルームID
-    #[schema(example = "room-1234567890-abc123")]
+    /// ルームID（UUID）
+    #[schema(example = "550e8400-e29b-41d4-a716-446655440000")]
     pub room_id: String,
     /// ルームコード（4桁の数字）
     #[schema(example = "1234")]
@@ -58,7 +63,8 @@ pub struct CreateRoomResponse {
 }
 
 /// ルーム参加リクエスト
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct JoinRoomRequest {
     /// プレイヤーID
     #[schema(example = "player-456")]
@@ -70,9 +76,10 @@ pub struct JoinRoomRequest {
 
 /// ルーム参加レスポンス
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct JoinRoomResponse {
-    /// ルームID
-    #[schema(example = "room-1234567890-abc123")]
+    /// ルームID（UUID）
+    #[schema(example = "550e8400-e29b-41d4-a716-446655440000")]
     pub room_id: String,
 }
 
@@ -92,4 +99,24 @@ pub struct ErrorInfo {
 pub struct RoomErrorResponse {
     /// エラー情報
     pub error: ErrorInfo,
+}
+
+/// ルーム退出リクエスト
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveRoomRequest {
+    /// プレイヤーID
+    #[schema(example = "player-123")]
+    pub player_id: String,
+    /// ルームID（UUID）
+    #[schema(example = "550e8400-e29b-41d4-a716-446655440000")]
+    pub room_id: String,
+}
+
+/// ルーム退出レスポンス
+#[derive(Serialize, ToSchema)]
+pub struct LeaveRoomResponse {
+    /// 成功フラグ
+    #[schema(example = true)]
+    pub success: bool,
 }

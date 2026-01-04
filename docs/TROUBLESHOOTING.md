@@ -397,21 +397,6 @@ npx wrangler whoami
 cat wrangler.toml
 ```
 
-### デプロイ後に動作しない
-
-#### 問題: デプロイ後、Worker が正常に動作しない
-
-**原因**:
-
-- 環境変数が設定されていない
-- Durable Objects のバインディングが正しく設定されていない
-
-**解決策**:
-
-1. Cloudflare Dashboard で環境変数を確認
-2. `wrangler.toml` で Durable Objects のバインディングを確認
-3. ログを確認: `npx wrangler tail`
-
 ## よくある質問（FAQ）
 
 ### Q: 開発サーバーを起動しても接続できない

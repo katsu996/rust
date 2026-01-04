@@ -1,6 +1,6 @@
 # rust
 
-Cloudflare Workers で動作する Rust ベースの計算API です。  
+Cloudflare Workers で動作する Rust ベースの計算API です。
 **utoipa** を使用した OpenAPI ドキュメント自動生成に対応しています。
 
 ## 特徴
@@ -15,7 +15,7 @@ Cloudflare Workers で動作する Rust ベースの計算API です。
 ### REST API
 
 | エンドポイント | 説明 |
-|---------------|------|
+| --- | --- |
 | `GET /math/add?a=X&b=Y` | 足し算（X + Y） |
 | `GET /math/sub?a=X&b=Y` | 引き算（X - Y） |
 | `GET /openapi.json` | OpenAPI 仕様（JSON） |
@@ -25,7 +25,7 @@ Cloudflare Workers で動作する Rust ベースの計算API です。
 ### ゲームルーム管理 API
 
 | エンドポイント | 説明 |
-|---------------|------|
+| --- | ---- |
 | `POST /api/quick-match` | Quick matchルームの検索・作成・参加 |
 | `POST /api/create-room` | カスタムルームの作成 |
 | `POST /api/join-room` | カスタムルームへの参加（roomCode使用） |
@@ -52,7 +52,7 @@ Cloudflare Workers で動作する Rust ベースの計算API です。
 
 ```json
 {
-  "roomId": "room-1234567890-abc123"
+  "roomId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -78,7 +78,7 @@ Cloudflare Workers で動作する Rust ベースの計算API です。
 
 ```json
 {
-  "roomId": "room-1234567890-abc123",
+  "roomId": "550e8400-e29b-41d4-a716-446655440000",
   "roomCode": "1234"
 }
 ```
@@ -100,7 +100,7 @@ roomCodeを使用してカスタムルームに参加します。
 
 ```json
 {
-  "roomId": "room-1234567890-abc123"
+  "roomId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -118,7 +118,7 @@ roomCodeを使用してカスタムルームに参加します。
 ### WebSocket API
 
 | エンドポイント | 説明 |
-|---------------|------|
+| --------------- | ------ |
 | `GET /ws?roomId=<room-id>` | WebSocket接続（GameSession Durable Objectへ接続） |
 
 #### WebSocket接続の要件
@@ -151,7 +151,7 @@ roomCodeを使用してカスタムルームに参加します。
 ```json
 {
   "type": "connection_established" | "round_start" | "round_result" | "error" | ...,
-  "roomId": "room-123",
+  "roomId": "550e8400-e29b-41d4-a716-446655440000",
   "playerId": "player-123",
   "isHost": true,
   "reactionFrames": 120,
@@ -315,12 +315,12 @@ curl -X POST http://127.0.0.1:8787/api/join-room \
      -d '{"playerId": "player-1"}'
    ```
 
-   レスポンス: `{"roomId": "room-123"}`
+   レスポンス: `{"roomId": "550e8400-e29b-41d4-a716-446655440000"}`
 
 2. **WebSocket接続**
 
    ```javascript
-   const ws = new WebSocket('ws://127.0.0.1:8787/ws?roomId=room-123');
+   const ws = new WebSocket('ws://127.0.0.1:8787/ws?roomId=550e8400-e29b-41d4-a716-446655440000');
    ```
 
 3. **ゲームフロー**
@@ -340,7 +340,7 @@ curl -X POST http://127.0.0.1:8787/api/join-room \
      -d '{"playerId": "player-1", "customRoomSettings": {...}}'
    ```
 
-   レスポンス: `{"roomId": "room-123", "roomCode": "1234"}`
+   レスポンス: `{"roomId": "550e8400-e29b-41d4-a716-446655440000", "roomCode": "1234"}`
 
 2. **ルーム参加**（別プレイヤー）
 
@@ -355,7 +355,7 @@ curl -X POST http://127.0.0.1:8787/api/join-room \
    ```javascript
    // プレイヤー1
    const ws1 = new WebSocket('ws://127.0.0.1:8787/ws?roomId=room-123');
-   
+
    // プレイヤー2
    const ws2 = new WebSocket('ws://127.0.0.1:8787/ws?roomId=room-123');
    ```
@@ -486,7 +486,7 @@ match url.path() {
 }
 ```
 
-## テスト
+## テストの実行
 
 ### すべてのテストを実行
 
@@ -564,7 +564,7 @@ pnpm build:ts
 ## 技術スタック
 
 | 技術 | 用途 |
-|-----|------|
+| ----- | ------ |
 | [worker-rs](https://github.com/cloudflare/workers-rs) | Cloudflare Workers Rust SDK |
 | [utoipa](https://github.com/juhaku/utoipa) | OpenAPI 自動生成 |
 | [serde](https://serde.rs/) | シリアライズ/デシリアライズ |

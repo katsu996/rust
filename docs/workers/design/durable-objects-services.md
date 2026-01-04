@@ -1,13 +1,15 @@
-## Durable Objects サービス層設計
+# Durable Objects サービス層設計
 
-### 1. 目的
+## 1. 目的
+
 - 既存のサーバー側サービス:
   - `GameService`
   - `RoundService`
   - `CountdownService`
 の責務を、GameSession DO 内の「サービスモジュール」に整理して再利用しやすくする。
 
-### 2. GameService 相当
+## 2. GameService 相当
+
 - 役割:
   - 反応時間データの検証（タイムスタンプ/フレーム値の妥当性）
   - 勝敗判定（`RoundResult`）
@@ -17,7 +19,8 @@
   - `calculateRoundResult(reactions): { result: RoundResult; winnerPlayerId: string | null }`
   - `updatePlayerWins(winnerPlayerId)`
 
-### 3. RoundService 相当
+## 3. RoundService 相当
+
 - 役割:
   - ラウンド終了時に
     - 勝者決定
@@ -28,7 +31,8 @@
   - `sendRoundResults()`
   - `resetRoundState()`
 
-### 4. CountdownService 相当
+## 4. CountdownService 相当
+
 - 役割:
   - Ready 完了後のカウントダウン開始
   - カウントダウン完了後に `round_start` 相当の処理を呼び出す
@@ -37,7 +41,7 @@
     - `COUNTDOWN_START` メッセージを送信
     - `setTimeout` / `alarm` 等で一定時間後にゲーム開始
 
-### 5. DO 内での配置イメージ
+## 5. DO 内での配置イメージ
 
 ```ts
 class GameSession extends DurableObject {
@@ -53,5 +57,3 @@ class GameSession extends DurableObject {
   }
 }
 ```
-
-
