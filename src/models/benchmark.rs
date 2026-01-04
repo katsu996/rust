@@ -3,6 +3,7 @@ use utoipa::ToSchema;
 
 /// ベンチマーク結果のレスポンス
 #[derive(Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct BenchmarkResult {
     /// 配列の要素数
     pub n: u64,
@@ -23,6 +24,7 @@ pub struct BenchmarkResult {
 }
 
 impl BenchmarkResult {
+    #[allow(clippy::cast_precision_loss)]
     pub fn new(n: u64, x: u64, iterations: u64, execution_time_ms: f64, result: u64) -> Self {
         let avg_execution_time_ms = execution_time_ms / iterations as f64;
         Self {
