@@ -6,7 +6,6 @@
 
 - **admin.html** - 管理画面（ルーム一覧、統計情報、ルーム削除など）
 - **test-quick-match-cleanup.html** - クイックマッチクリーンアップ処理のテストツール
-- **test-websocket.html** - WebSocket接続のテストツール
 
 ## 使い方
 

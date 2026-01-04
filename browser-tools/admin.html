@@ -573,6 +573,17 @@
     </div>
 
     <script>
+        // HTMLエスケープ関数
+        function escapeHtml(unsafe) {
+            if (unsafe == null) return '';
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         let autoRefreshInterval = null;
         let serverUrl = 'https://rust.katsu996.workers.dev';
         let allRooms = [];
@@ -584,7 +595,18 @@
             // localhostの場合のみ開発用エンドポイントからAPIキーを取得
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 try {
-                    const response = await fetch(`${serverUrl}/api/admin/dev-key`);
+                    // DEV_SECRETをユーザーに入力してもらう
+                    const devSecret = prompt('開発環境用のAPIキーを取得するには、DEV_SECRETを入力してください:');
+                    if (!devSecret) {
+                        console.log('DEV_SECRETが入力されなかったため、開発環境用APIキーの取得をスキップしました');
+                        return false;
+                    }
+
+                    const response = await fetch(`${serverUrl}/api/admin/dev-key`, {
+                        headers: {
+                            'X-Dev-Secret': devSecret
+                        }
+                    });
                     if (response.ok) {
                         const data = await response.json();
                         if (data.apiKey) {
@@ -600,8 +622,14 @@
                             console.warn('開発環境用APIキーの取得: レスポンスにapiKeyが含まれていません', data);
                         }
                     } else {
-                        const errorText = await response.text().catch(() => '');
-                        console.warn(`開発環境用APIキーの取得に失敗しました: ${response.status} ${response.statusText}`, errorText);
+                        if (response.status === 401) {
+                            const errorText = await response.text().catch(() => '');
+                            console.error('認証に失敗しました。DEV_SECRETが正しくありません。', errorText);
+                            alert('認証に失敗しました。DEV_SECRETが正しくありません。');
+                        } else {
+                            const errorText = await response.text().catch(() => '');
+                            console.warn(`開発環境用APIキーの取得に失敗しました: ${response.status} ${response.statusText}`, errorText);
+                        }
                     }
                 } catch (error) {
                     console.warn('開発環境用APIキーの取得に失敗しました:', error);
@@ -610,7 +638,7 @@
             return false;
         }
 
-        // ローカルストレージからAPIキーを読み込む
+        // セッションストレージからAPIキーを読み込む（タブが閉じられると自動的にクリアされる）
         async function loadApiKey() {
             // サーバー側で既にAPIキーが埋め込まれている場合（プレースホルダーが置換されている）
             if (adminApiKey && adminApiKey !== '{{ADMIN_API_KEY}}') {
@@ -627,9 +655,9 @@
             // サーバー側で埋め込まれていない場合、開発環境用のAPIキーを取得を試みる
             const devKeyLoaded = await fetchDevApiKey();
 
-            // 開発環境用のAPIキーが取得できなかった場合、ローカルストレージから読み込む
+            // 開発環境用のAPIキーが取得できなかった場合、セッションストレージから読み込む
             if (!devKeyLoaded) {
-                const savedKey = localStorage.getItem('adminApiKey');
+                const savedKey = sessionStorage.getItem('adminApiKey');
                 if (savedKey) {
                     adminApiKey = savedKey;
                     const apiKeyInput = document.getElementById('apiKeyInput');
@@ -640,10 +668,10 @@
             }
         }
 
-        // APIキーを保存
+        // APIキーを保存（セッションストレージに保存：タブが閉じられると自動的にクリアされる）
         function saveApiKey(key) {
             adminApiKey = key;
-            localStorage.setItem('adminApiKey', key);
+            sessionStorage.setItem('adminApiKey', key);
         }
 
         // 入力欄からAPIキーを保存
@@ -887,16 +915,16 @@
 
                 row.innerHTML = `
                     <td>
-                        <input type="checkbox" class="room-checkbox" value="${room.roomId}" onchange="updateDeleteButtonState()">
+                        <input type="checkbox" class="room-checkbox" value="${escapeHtml(room.roomId)}" onchange="updateDeleteButtonState()">
                     </td>
-                    <td class="room-id">${room.roomId || 'N/A'}</td>
-                    <td><span class="room-type ${room.matchType || 'unknown'}">${room.matchType === 'quick' ? 'Quick Match' : room.matchType === 'custom' ? 'Custom' : 'Unknown'}</span></td>
+                    <td class="room-id">${escapeHtml(room.roomId || 'N/A')}</td>
+                    <td><span class="room-type ${escapeHtml(room.matchType || 'unknown')}">${room.matchType === 'quick' ? 'Quick Match' : room.matchType === 'custom' ? 'Custom' : 'Unknown'}</span></td>
                     <td><span class="player-count ${isFull ? 'full' : 'available'}">${playerCount} / ${maxPlayers}</span></td>
                     <td>${maxPlayers}</td>
                     <td>${statusBadge}</td>
                     <td>
-                        <a href="#" class="details-toggle" onclick="toggleDetailsById('${detailsId}'); return false;">詳細</a>
-                        <button onclick="deleteRoom('${room.roomId}')" style="margin-left: 10px; background-color: #e74c3c; padding: 5px 10px; font-size: 12px;">削除</button>
+                        <a href="#" class="details-toggle" onclick="toggleDetailsById('${escapeHtml(detailsId)}'); return false;">詳細</a>
+                        <button onclick="deleteRoom('${escapeHtml(room.roomId)}')" style="margin-left: 10px; background-color: #e74c3c; padding: 5px 10px; font-size: 12px;">削除</button>
                     </td>
                 `;
 
@@ -919,7 +947,7 @@
                                 <h4>プレイヤー情報</h4>
                                 <pre><code>${JSON.stringify(room.roomPlayers || [], null, 2)}</code></pre>
                             </div>
-                            ${room.code ? `<div class="details-section"><h4>ルームコード</h4><pre><code>${room.code}</code></pre></div>` : ''}
+                            ${room.code ? `<div class="details-section"><h4>ルームコード</h4><pre><code>${escapeHtml(room.code)}</code></pre></div>` : ''}
                         </div>
                     </td>
                 `;
@@ -994,15 +1022,15 @@
                 if (user.isReady) {
                     badges += '<span class="badge ready">Ready</span> ';
                 }
-                badges += `<span class="badge ${user.matchType}">${user.matchType === 'quick' ? 'Quick' : 'Custom'}</span>`;
+                badges += `<span class="badge ${escapeHtml(user.matchType)}">${user.matchType === 'quick' ? 'Quick' : 'Custom'}</span>`;
 
                 row.innerHTML = `
-                    <td class="user-id">${user.playerId || 'N/A'}</td>
-                    <td>${user.playerName || 'Unknown'}</td>
-                    <td>${user.rating || 0}</td>
-                    <td class="user-id">${user.roomId || 'N/A'}</td>
+                    <td class="user-id">${escapeHtml(user.playerId || 'N/A')}</td>
+                    <td>${escapeHtml(user.playerName || 'Unknown')}</td>
+                    <td>${escapeHtml(String(user.rating || 0))}</td>
+                    <td class="user-id">${escapeHtml(user.roomId || 'N/A')}</td>
                     <td>${user.matchType === 'quick' ? 'Quick Match' : user.matchType === 'custom' ? 'Custom' : 'Unknown'}</td>
-                    <td>${user.roomCode || '-'}</td>
+                    <td>${escapeHtml(user.roomCode || '-')}</td>
                     <td>${badges}</td>
                 `;
 
@@ -1163,6 +1191,21 @@
                 return;
             }
 
+            // CSRF保護: 確認コードの入力（最初のルームIDの最後4文字）
+            const firstRoomId = selectedRooms[0];
+            const confirmationCode = firstRoomId.slice(-4).toUpperCase();
+            const userInput = prompt(
+                `削除を確認するために、最初のルームIDの最後4文字を入力してください:\n` +
+                `確認コード: ${confirmationCode}\n\n` +
+                `(大文字・小文字は区別されません)`
+            );
+
+            if (!userInput || userInput.toUpperCase() !== confirmationCode) {
+                alert('確認コードが一致しません。削除操作はキャンセルされました。');
+                log('❌ 削除操作がキャンセルされました（確認コード不一致）', 'warning');
+                return;
+            }
+
             log(`🗑️ ${selectedRooms.length}個のルームを削除中...`, 'info');
 
             let successCount = 0;
@@ -1227,8 +1270,25 @@
         }
 
         // ルーム削除関数（個別削除用）
+        // 単一ルームを削除
         async function deleteRoom(roomId) {
-            if (!confirm(`ルーム "${roomId}" を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+            // roomIdを安全に表示するため、JSON.stringifyを使用（改行や特殊文字をエスケープ）
+            const safeRoomId = JSON.stringify(roomId);
+            if (!confirm(`ルーム ${safeRoomId} を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+                return;
+            }
+
+            // CSRF保護: 確認コードの入力（ルームIDの最後4文字）
+            const confirmationCode = roomId.slice(-4).toUpperCase();
+            const userInput = prompt(
+                `削除を確認するために、ルームIDの最後4文字を入力してください:\n` +
+                `確認コード: ${confirmationCode}\n\n` +
+                `(大文字・小文字は区別されません)`
+            );
+
+            if (!userInput || userInput.toUpperCase() !== confirmationCode) {
+                alert('確認コードが一致しません。削除操作はキャンセルされました。');
+                log('❌ 削除操作がキャンセルされました（確認コード不一致）', 'warning');
                 return;
             }
 

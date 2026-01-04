@@ -1003,8 +1003,9 @@ export class GameSession {
     });
 
     // 全員Readyの場合、カウントダウン開始
-    const allReady = Object.keys(this.gameState.readyByPlayerId).every(
-      (pid) => this.gameState.readyByPlayerId[pid]
+    const allPlayerIds = Array.from(this.players.keys());
+    const allReady = allPlayerIds.length > 0 && allPlayerIds.every(
+      (pid) => this.gameState.readyByPlayerId[pid] === true
     );
     if (allReady && this.players.size === this.settings.maxPlayers) {
       await this.startCountdown();

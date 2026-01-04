@@ -333,6 +333,39 @@ export class RoomManager {
     const body = await request.json<{ playerId: string; roomCode: string }>();
     const { playerId, roomCode } = body;
 
+    // 入力検証
+    if (!playerId || typeof playerId !== "string" || playerId.trim().length === 0) {
+      console.error(`[RoomManager] playerId is missing or invalid in request body`);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "playerId is required and must be a non-empty string",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!roomCode || typeof roomCode !== "string" || roomCode.trim().length === 0) {
+      console.error(`[RoomManager] roomCode is missing or invalid in request body`);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "roomCode is required and must be a non-empty string",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // roomCodeからroomIdを取得
     const roomId = this.codeToRoomId.get(roomCode);
     if (!roomId) {
@@ -373,6 +406,23 @@ export class RoomManager {
           error: {
             code: "ROOM_FULL",
             message: "Room is full",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // プレイヤーが既にルームに参加しているかチェック
+    if (room.playerIds.has(playerId)) {
+      console.error(`[RoomManager] Player ${playerId} is already in room ${roomId}`);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "Player is already in this room",
           },
         }),
         {
@@ -636,6 +686,21 @@ export class RoomManager {
       roomId: string;
     }>();
     const { roomId } = body;
+
+    if (!roomId || typeof roomId !== "string" || roomId.trim().length === 0) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_REQUEST",
+            message: "roomId is required",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     const room = this.rooms.get(roomId);
     if (!room) {
